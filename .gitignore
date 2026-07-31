@@ -1,0 +1,12 @@
+ieee_paper/
+.tempmediaStorage/
+logs/
+plots/
+datasets/
+__pycache__/
+*.pt
+*.pth
+.DS_Store
+.venv/
+venv/
+*.zip
