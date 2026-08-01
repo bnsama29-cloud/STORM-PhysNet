@@ -19,7 +19,7 @@ The core architecture of STORM-PhysNet, illustrated in the figure below, is desi
 Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. This module dynamically learns the solar wind transit time *τ* = *f<sub>θ</sub>*(**X**<sub>sw</sub>) ∈ [0.5, 1.5] hours. The input features are continuously shifted in the temporal domain such that **X**'<sub>sw</sub>(*t*) = **X**<sub>sw</sub>(*t* - *τ*), perfectly aligning the upstream drivers with the target geostationary response.
 
 ### Temporal Encoding
-The aligned solar wind features and the raw electron flux are concatenated and linearly projected into a high-dimensional hidden space. Positional encodings **P**<sub>pos</sub> are added, yielding the initial token sequence **Z**<sup>(0)</sup> = [**X**'<sub>sw</sub> || **X**<sub>flux</sub>]**W**<sub>in</sub> + **P**<sub>pos</sub>. A Multi-Head Attention (MHA) Transformer backbone extracts temporal dependencies across the 72-hour window, outputting the final fused hidden representation **h**.
+The aligned solar wind features and the raw electron flux are concatenated and linearly projected into a high-dimensional hidden space. Positional encodings **P**<sub>pos</sub> are added, yielding the initial token sequence **Z**<sup>(0)</sup> = [**X**'<sub>sw</sub> || **X**<sub>flux</sub>]**W**<sub>in</sub> + **P**<sub>pos</sub>. A Multi-Head Attention (MHA) Transformer backbone extracts temporal dependencies across the 72-hour window, outputting the final fused hidden representation **h**. Notably, STORM-PhysNet achieves this with only **~343K parameters**, compared to **~845K parameters** for the baseline Transformer, proving that physics-informed constraints yield higher performance with a vastly smaller parameter footprint.
 
 ### *B<sub>z</sub>* Physics Gate (Storm Trigger)
 During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF *B<sub>z</sub>* < 0), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the *B<sub>z</sub>* Physics Gate. A gating scalar *σ* = Sigmoid(**W**<sub>g</sub>**h** + *b<sub>g</sub>*) is computed from the hidden representation. However, this gate is strictly controlled by the raw *B<sub>z</sub>* input feature. If *B<sub>z</sub>* < 0, the hidden state is amplified (**h**<sub>gated</sub> = *σ* ⊙ **h**); otherwise, the representation passes unchanged (**h**<sub>gated</sub> = **h**). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
@@ -78,6 +78,7 @@ STORM-PhysNet/
 *All figures and tables generated during the rigorous multi-seed evaluation process on the 5-year GOES dataset can be found in the `interpretations/` directory.*
 
 ### Performance Summary (6-Hour Horizon)
+*Note: Storm periods are explicitly defined and evaluated using the pipeline's rigorous `storm_flag` masking (identifying active geomagnetic periods).*
 | Model Architecture | Seeds | PE (All) | PE (Storm) | PE (High Flux) | RMSE (All) |
 |-------------------|:---:|:---:|:---:|:---:|:---:|
 | **STORM-Bz (Ours)** | 3 | **0.669** ±0.030 | **0.674** ±0.017 | **0.745** | **0.251** |
@@ -97,7 +98,7 @@ Removing the Adaptive Delay costs **3.0 storm PE points**; removing the Physics 
 
 ![Ablation Results](ieee_paper/figures/fig4_ablation_multi.png)
 
-The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.0 hours**:
+The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.5 hours**:
 
 ![Propagation Delay Histogram](ieee_paper/figures/fig6_delay_hist.png)
 
@@ -119,10 +120,6 @@ Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder s
 
 ![GRASP Transfer Learning](ieee_paper/figures/fig8_grasp_domain_gap.png)
 
-### 5. Uncertainty & Residual Diagnostics
-Monte-Carlo dropout provides highly reliable 95% uncertainty bounds during varying solar wind conditions.
-
-![MC Dropout Uncertainty](interpretations/Figures/fig_mc_dropout_band.png)
 
 Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zero-centered and Gaussian error distribution compared to the standard Transformer baseline.
 
@@ -164,8 +161,9 @@ cd STORM-PhysNet
 pip install -r requirements.txt
 ```
 
-### 2. Google Colab Unified Pipeline
-To effortlessly train all configurations, extract checkpoints, compute metrics, and generate the full suite of interpretation figures on a T4 GPU, upload `datasets.zip` (containing GOES + OMNI + GRASP datasets) and run the master Colab pipeline:
+### 2. Reproducibility & Evaluation Pipeline
+To strictly reproduce the paper's multi-seed evaluation, ensure your data is located in the standard paths (`data/goes/`, `data/omni/`) and run the evaluation scripts across the three reported seeds `{42, 43, 44}`. 
+Alternatively, use the master Colab pipeline to effortlessly train all configurations, extract checkpoints, compute metrics, and generate the full suite of interpretation figures on a T4 GPU:
 ```bash
 python colab_full_train.py
 ```
