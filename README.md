@@ -1,14 +1,15 @@
 # 🚀 STORM-PhysNet
 **Physics-Informed Multi-Horizon Forecasting of Geostationary Relativistic Electron Flux**
 
-STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux ( > 2$ MeV) at Geostationary Earth Orbit (GEO). It couples a standard Transformer encoder with physics-informed modules to accurately model flux enhancements driven by geomagnetic storms, avoiding the catastrophic instabilities seen in standard black-box models at short operational horizons.
+STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux ($E > 2$ MeV) at Geostationary Earth Orbit (GEO). It couples a standard Transformer encoder with physics-informed modules to accurately model flux enhancements driven by geomagnetic storms, avoiding the catastrophic instabilities seen in standard black-box models at short operational horizons.
 
 ---
 
 ## 🛰️ Architecture
 The model processes 72 hours of upstream solar wind and geomagnetic indices to simultaneously predict electron flux at **45-min, 6-h, and 12-h horizons**.
 
-\Solar Wind (OMNI/GOES, 16 features, 72 h window)
+```text
+Solar Wind (OMNI/GOES, 16 features, 72 h window)
         │
         ▼
 ┌─────────────────────────────┐
@@ -26,11 +27,23 @@ The model processes 72 hours of upstream solar wind and geomagnetic indices to s
     ┌──────────▼───────────┐
     │ Multi-Horizon Heads  │  ← Shared latent space for 45-m, 6-h, 12-h output
     └──────────────────────┘
-\
+```
+
 ---
 
 ## 📊 Interpretations & Results
-All figures and tables generated during the rigorous multi-seed evaluation process on the 5-year GOES dataset can be found in the \interpretations/\ directory.
+All figures and tables generated during the rigorous multi-seed evaluation process on the 5-year GOES dataset can be found in the `interpretations/` directory.
+
+### Performance Summary (6-Hour Horizon)
+| Model Architecture | Seeds | PE (All) | PE (Storm) | PE (High Flux) | RMSE (All) |
+|-------------------|:---:|:---:|:---:|:---:|:---:|
+| **STORM-Bz (Ours)** | 3 | **0.669** ±0.030 | **0.674** ±0.017 | **0.745** | **0.251** |
+| STORM-NoDelay (Ablation) | 3 | 0.672 ±0.022 | 0.643 ±0.015 | 0.717 | 0.250 |
+| STORM-NoPhysics (Ablation) | 3 | 0.677 ±0.019 | 0.651 ±0.029 | 0.719 | 0.248 |
+| Transformer (Baseline) | 3 | 0.648 ±0.031 | 0.612 ±0.042 | 0.717 | 0.259 |
+| LSTM (Baseline) | 1 | 0.614 | 0.634 | 0.792 | 0.271 |
+| MLP (Baseline) | 1 | 0.525 | 0.541 | 0.666 | 0.301 |
+| CNN (Baseline) | 1 | 0.033 | 0.164 | 0.187 | 0.429 |
 
 ### 1. Multi-Horizon Reliability
 At the critical 45-minute horizon, standard Transformers are highly unstable across random seeds. STORM-PhysNet remains strictly reliable and outperforms baselines across all horizons.
@@ -60,7 +73,7 @@ During intense geomagnetic activity, the model tracks rapid flux enhancements su
 ![Event Case Studies](interpretations/Figures/fig_case_studies.png)
 
 ### 4. Cross-Satellite Transfer (GRASP)
-Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only ~73K parameters recovers robust skill ({6h} = 0.564$), demonstrating high practical value for newly commissioned space weather missions with scarce data.
+Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only ~73K parameters recovers robust skill ($PE_{6h} = 0.564$), demonstrating high practical value for newly commissioned space weather missions with scarce data.
 
 ![GRASP Transfer Learning](interpretations/Figures/fig_grasp_transfer.png)
 
@@ -76,13 +89,13 @@ Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zer
 ---
 
 ## 📁 Repository Structure
-* \src/model/\ - PyTorch model architecture (Transformer backbone, Delay module, Physics gate).
-* \src/data/\ - Data loading and preprocessing pipelines.
-* \src/training/\ - Model training loops and multi-seed logic.
-* \src/evaluation/\ - Metrics calculation (PE, RMSE) and evaluation scripts.
-* \interpretations/\ - Complete IEEE final output metrics, JSON statistics, and PNG figures.
-* \colab_full_train.py\ - The unified master pipeline script.
-* \dashboard/\ - Interactive Streamlit web app for live forecasting.
+* `src/model/` - PyTorch model architecture (Transformer backbone, Delay module, Physics gate).
+* `src/data/` - Data loading and preprocessing pipelines.
+* `src/training/` - Model training loops and multi-seed logic.
+* `src/evaluation/` - Metrics calculation (PE, RMSE) and evaluation scripts.
+* `interpretations/` - Complete IEEE final output metrics, JSON statistics, and PNG figures.
+* `colab_full_train.py` - The unified master pipeline script.
+* `dashboard/` - Interactive Streamlit web app for live forecasting.
 
 *(Note: Latex paper drafts, compiled PDFs, and raw dataset files are excluded from this repository).*
 
@@ -90,20 +103,23 @@ Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zer
 
 ## 🚀 Quick Start
 ### 1. Install Dependencies
-\\ash
+```bash
 pip install -r requirements.txt
-\
+```
+
 ### 2. Google Colab Unified Pipeline
 To effortlessly train all configurations, extract checkpoints, compute metrics, and generate the full suite of interpretation figures on a T4 GPU, use the master Colab pipeline:
-\\ash
+```bash
 python colab_full_train.py
-\*Ensure your \datasets.zip\ (GOES + OMNI + GRASP) is available as specified in the script.*
+```
+*Ensure your `datasets.zip` (GOES + OMNI + GRASP) is available as specified in the script.*
 
 ### 3. Run the Interactive Dashboard
 Launch the Streamlit app for real-time visualization of the trained models:
-\\ash
+```bash
 streamlit run dashboard/app.py
-\
+```
+
 ---
 **Author:** Samarth BN (RV College of Engineering)  
 **Acknowledgment:** The authors thank the providers of GOES, OMNI, and GRASP data products.
