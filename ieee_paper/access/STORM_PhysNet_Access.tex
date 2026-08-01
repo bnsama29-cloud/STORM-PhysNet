@@ -768,7 +768,7 @@ not explicitly model variate-axis correlations; performance during rapidly
 evolving interplanetary coronal mass ejections may therefore be limited. Published PE values in the
 space-weather literature use heterogeneous cadences, flux energy thresholds,
 and persistence definitions; direct numerical comparison without normalization
-is misleading~\cite{b18,b17}. Furthermore, evaluating models across only three random seeds means that determining the definitive statistical significance of small performance differences remains exploratory.
+is misleading~\cite{b18,b17}. Specifically, while the mean improvement is \(\Delta\mathrm{PE}_\mathrm{all} \approx 0.021\) (Cohen's \(d \approx 0.40\)), testing over \(n=3\) seeds means formal sign-flip significance remains exploratory; however, the model's reliability shines primarily during storm intervals and at the critical 45-minute horizon.
 
 %% ====================================================================
 \section{Conclusion}
@@ -794,6 +794,8 @@ These results establish a transparent benchmark against which future
 models---incorporating EUV imagery, multi-orbit data coverage, or larger
 pretraining corpora from operational archives---can be directly measured.
 
+\section*{Data Availability}
+GOES-15 EPEAD and OMNI datasets are available from public archives. GRASP data is used under the specific terms of the problem setting.
 
 \section*{Acknowledgment}
 The authors thank the data providers for GOES, OMNI, and GRASP products.
