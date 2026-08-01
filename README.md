@@ -137,8 +137,9 @@ STORM-PhysNet includes a fully interactive Streamlit dashboard designed for oper
 ### Nominal Space Weather (Quiet Baseline)
 During typical conditions (*B<sub>z</sub>* ≈ -2 nT, Solar Wind ≈ 400 km/s), the *B<sub>z</sub>* Physics Gate remains closed. The model produces stable, low-variance forecasts without false alarms.
 <p align="center">
-  <img src="interpretations/Figures/fig_dashboard_quiet_flux.png" width="48%">
-  <img src="interpretations/Figures/fig_dashboard_quiet_solarwind.png" width="48%">
+  <img src="interpretations/Figures/fig_dashboard_quiet_flux.png" width="100%">
+  <br><br>
+  <img src="interpretations/Figures/fig_dashboard_quiet_solarwind.png" width="100%">
 </p>
 
 ### Extreme Geomagnetic Storm Trigger
@@ -147,8 +148,9 @@ When a simulated Coronal Mass Ejection (CME) impacts (*B<sub>z</sub>* < -10 nT, 
 - The ***B<sub>z</sub>* Physics Gate** activation spikes to > 90%, dynamically altering the internal feature representation.
 - The **Multi-Horizon Forecasting Heads** project massive flux enhancements with appropriately widened uncertainty bounds.
 <p align="center">
-  <img src="interpretations/Figures/fig_dashboard_storm_flux.png" width="48%">
-  <img src="interpretations/Figures/fig_dashboard_storm_solarwind.png" width="48%">
+  <img src="interpretations/Figures/fig_dashboard_storm_flux.png" width="100%">
+  <br><br>
+  <img src="interpretations/Figures/fig_dashboard_storm_solarwind.png" width="100%">
 </p>
 
 ---
