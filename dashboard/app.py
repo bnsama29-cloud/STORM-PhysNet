@@ -26,85 +26,85 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Custom CSS — premium dark theme
+# Custom CSS — IEEE Standard Light Theme
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
 
+    /* Pure white background for IEEE */
     .stApp {
-        background: linear-gradient(135deg, #0a0e1a 0%, #0d1526 50%, #0a0e1a 100%);
+        background: #ffffff;
+    }
+
+    /* High contrast text everywhere */
+    h1, h2, h3, p, span, div {
+        color: #000000 !important;
     }
 
     .metric-card {
-        background: linear-gradient(135deg, rgba(30,40,70,0.8), rgba(15,25,50,0.9));
-        border: 1px solid rgba(99,179,237,0.2);
-        border-radius: 16px;
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
         padding: 20px;
         margin: 8px 0;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
 
     .metric-value {
-        font-size: 2.2rem;
+        font-size: 2.4rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #63b3ed, #9f7aea);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #000000 !important;
         font-family: 'JetBrains Mono', monospace;
     }
 
     .metric-label {
-        font-size: 0.8rem;
-        color: #718096;
+        font-size: 0.85rem;
+        color: #343a40 !important;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-weight: 500;
+        letter-spacing: 0.05em;
+        font-weight: 700;
     }
 
     .storm-badge {
-        background: linear-gradient(135deg, #e53e3e, #c53030);
-        color: white;
+        background: #d32f2f;
+        color: white !important;
         padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        animation: pulse 2s infinite;
+        border: 2px solid #b71c1c;
     }
 
     .quiet-badge {
-        background: linear-gradient(135deg, #38a169, #276749);
-        color: white;
+        background: #2e7d32;
+        color: white !important;
         padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(229,62,62,0.5); }
-        50% { opacity: 0.85; box-shadow: 0 0 20px rgba(229,62,62,0.8); }
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border: 2px solid #1b5e20;
     }
 
     .section-header {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #e2e8f0;
-        border-bottom: 2px solid rgba(99,179,237,0.3);
-        padding-bottom: 8px;
-        margin: 16px 0 12px 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #000000 !important;
+        border-bottom: 3px solid #000000;
+        padding-bottom: 6px;
+        margin: 20px 0 12px 0;
     }
 
     .sidebar-section {
-        background: rgba(15,25,50,0.6);
-        border-radius: 12px;
+        background: #f1f3f5;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
         padding: 16px;
         margin-bottom: 12px;
     }
@@ -112,12 +112,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 PLOT_THEME = dict(
-    paper_bgcolor="rgba(10,14,26,0)",
-    plot_bgcolor="rgba(10,14,26,0)",
-    font=dict(color="#e2e8f0", family="Inter"),
-    xaxis=dict(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.1)"),
-    yaxis=dict(gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.1)"),
-    margin=dict(l=50, r=20, t=40, b=40),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(color="black", family="Arial", size=14),
+    xaxis=dict(
+        gridcolor="#e9ecef", 
+        linecolor="black", 
+        linewidth=2, 
+        mirror=True, 
+        zeroline=False,
+        title_font=dict(size=16, weight="bold")
+    ),
+    yaxis=dict(
+        gridcolor="#e9ecef", 
+        linecolor="black", 
+        linewidth=2, 
+        mirror=True, 
+        zeroline=False,
+        title_font=dict(size=16, weight="bold")
+    ),
+    margin=dict(l=60, r=30, t=50, b=50),
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -314,13 +328,13 @@ with tab1:
     fig.add_trace(go.Scatter(
         x=t, y=log_flux,
         name="Observed Flux",
-        line=dict(color="#63b3ed", width=2),
+        line=dict(color="#1f77b4", width=4),
         mode="lines",
     ))
     # Forecast points
     forecast_t     = [72, 72+6, 72+12]
     forecast_labels = ["30-45 min", "6h", "12h"]
-    colors         = ["#f6ad55", "#f687b3", "#9f7aea"]
+    colors         = ["#ff7f0e", "#d62728", "#9467bd"]
 
     for ft, fp, fs, fl, fc in zip(forecast_t, preds, stds,
                                    forecast_labels, colors):
@@ -328,8 +342,8 @@ with tab1:
             fig.add_trace(go.Scatter(
                 x=[ft, ft], y=[fp - 1.96 * fs, fp + 1.96 * fs],
                 mode="lines",
-                line=dict(color=fc, width=1, dash="dot"),
-                showlegend=False, opacity=0.5,
+                line=dict(color=fc, width=3, dash="dot"),
+                showlegend=False, opacity=0.7,
             ))
         fig.add_trace(go.Scatter(
             x=[ft], y=[fp],
@@ -340,19 +354,19 @@ with tab1:
         ))
 
     # Radiation hazard threshold
-    fig.add_hline(y=4.0, line_dash="dash", line_color="rgba(229,62,62,0.6)",
-                   annotation_text="Radiation Hazard Level (10⁴)")
+    fig.add_hline(y=4.0, line_dash="dash", line_color="#d62728", line_width=2,
+                   annotation_text="Radiation Hazard Level (10⁴)", annotation_font_color="#d62728")
 
-    fig.add_vline(x=72, line_dash="dash", line_color="rgba(255,255,255,0.3)",
-                   annotation_text="NOW")
+    fig.add_vline(x=72, line_dash="dash", line_color="black", line_width=2,
+                   annotation_text="NOW", annotation_font_color="black")
 
     fig.update_layout(
         **PLOT_THEME,
-        title="GEO Electron Flux Forecast (log₁₀ scale)",
+        title=dict(text="GEO Electron Flux Forecast (log₁₀ scale)", font=dict(color="black", size=20, weight="bold")),
         xaxis_title="Time (hours)",
         yaxis_title="log₁₀(flux [e⁻/cm²/s/sr])",
         height=400,
-        legend=dict(bgcolor="rgba(0,0,0,0.3)", bordercolor="rgba(255,255,255,0.1)"),
+        legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="black", borderwidth=1),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -364,22 +378,22 @@ with tab2:
                           shared_xaxes=True, vertical_spacing=0.08)
 
     fig2.add_trace(go.Scatter(x=t, y=vsw_ts,
-                               line=dict(color="#f6ad55", width=1.5),
+                               line=dict(color="#ff7f0e", width=3),
                                name="Vsw"), row=1, col=1)
     fig2.add_trace(go.Scatter(x=t, y=bz_ts,
-                               line=dict(color="#fc8181", width=1.5),
+                               line=dict(color="#d62728", width=3),
                                name="Bz",
                                fill="tozeroy",
-                               fillcolor="rgba(252,129,129,0.08)"), row=2, col=1)
+                               fillcolor="rgba(214,39,40,0.15)"), row=2, col=1)
     fig2.add_trace(go.Scatter(x=t, y=dens_ts,
-                               line=dict(color="#68d391", width=1.5),
+                               line=dict(color="#2ca02c", width=3),
                                name="Density"), row=3, col=1)
 
     fig2.add_hline(y=-5, row=2, line_dash="dash",
-                    line_color="rgba(229,62,62,0.5)",
-                    annotation_text="Gate threshold")
+                    line_color="#d62728", line_width=2,
+                    annotation_text="Gate threshold", annotation_font_color="#d62728")
     fig2.update_layout(**PLOT_THEME, height=500,
-                        title="Solar Wind History (72-hour input window)")
+                        title=dict(text="Solar Wind History (72-hour input window)", font=dict(color="black", size=20, weight="bold")))
     st.plotly_chart(fig2, use_container_width=True)
 
 with tab3:
