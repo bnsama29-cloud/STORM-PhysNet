@@ -119,7 +119,7 @@ PLOT_THEME = dict(
         gridcolor="#e9ecef", 
         linecolor="black", 
         linewidth=2, 
-        mirror=True, 
+        mirror=False, 
         zeroline=False,
         title_font=dict(size=16, weight="bold")
     ),
@@ -127,7 +127,7 @@ PLOT_THEME = dict(
         gridcolor="#e9ecef", 
         linecolor="black", 
         linewidth=2, 
-        mirror=True, 
+        mirror=False, 
         zeroline=False,
         title_font=dict(size=16, weight="bold")
     ),
@@ -318,8 +318,8 @@ with col5:
 # Main plots
 # ─────────────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📈 Flux Forecast", "🌀 Solar Wind", "📊 Performance Metrics", "🔬 Physics Insights"
+tab1, tab2 = st.tabs([
+    "📈 Flux Forecast", "🌀 Solar Wind"
 ])
 
 with tab1:
@@ -400,112 +400,6 @@ with tab2:
     fig2.update_layout(**theme2, height=650,
                         title=dict(text="Solar Wind History (72-hour input window)", font=dict(color="black", size=20, weight="bold")))
     st.plotly_chart(fig2, use_container_width=True)
-
-with tab3:
-    # Real performance comparison table from ieee_table.txt
-    perf_data = {
-        "Model": [
-            "STORM-PhysNet (Ours, Ensembled)",
-            "STORM-PhysNet (Ours, storm_bz)",
-            "Transformer (Tan 2024)",
-            "LSTM (Baseline)",
-            "MLP (Baseline)",
-            "CNN (Baseline)",
-        ],
-        "PE (All)":    [0.7180, 0.6686, 0.6475, 0.6140, 0.5251, 0.0326],
-        "PE (Storm)":  [0.7029, 0.6737, 0.6118, 0.6342, 0.5409, 0.1644],
-        "PE (High)":   [0.7828, 0.7450, 0.7171, 0.7924, 0.6656, 0.1872],
-        "RMSE":        [0.2318, 0.2511, 0.2590, 0.2711, 0.3008, 0.4293],
-        "PE (45m)":    [0.3256, 0.3373, -0.1528, -1.0370, -2.5952, -5.5245],
-        "PE (12h)":    [0.7753, 0.7419, 0.7293, 0.7225, 0.6702, 0.3500],
-    }
-    df_perf = pd.DataFrame(perf_data)
-
-    st.markdown('<div class="section-header">Performance vs. SOTA Models (6-hour Forecast)</div>',
-                unsafe_allow_html=True)
-    st.dataframe(df_perf.style.highlight_max(
-        subset=["PE (All)", "PE (Storm)", "PE (High)", "PE (45m)", "PE (12h)"],
-        color="#1a3a2a").highlight_min(subset=["RMSE"], color="#1a3a2a"), 
-        use_container_width=True, hide_index=True)
-
-    st.info("⚡ **Storm-period performance** (Dst ≤ -50 nT) is the key metric. "
-            "Our physics-informed ensemble avoids the 'MSE Trap' and dominates the storm peaks.")
-
-    # Ablation table
-    st.markdown('<div class="section-header">Ablation Study (Physics Impact, n=3 seeds)</div>',
-                unsafe_allow_html=True)
-    # Baseline PE_storm for storm_bz = 0.6737
-    # storm_no_delay (n=3) PE_storm = 0.6435 -> Degradation = (0.6435 - 0.6737) = -0.0302 (-3.02%)
-    # storm_no_physics (n=3) PE_storm = 0.6509 -> Degradation = (0.6509 - 0.6737) = -0.0228 (-2.28%)
-    # LSTM PE_storm = 0.6342 -> Degradation = (0.6342 - 0.6737) = -0.0395 (-3.95%)
-    ablation_data = {
-        "Experiment":           ["Full STORM-PhysNet (storm_bz)", "− Adaptive Delay (no_delay)", "− Physics Loss (no_physics)", "LSTM Baseline"],
-        "PE (All)":             [0.6686, 0.6719, 0.6768, 0.6140],
-        "PE (Storm)":           [0.6737, 0.6435, 0.6509, 0.6342],
-        "Storm Degradation":    ["Baseline", "-3.02%", "-2.28%", "-3.95%"],
-    }
-    st.dataframe(pd.DataFrame(ablation_data), use_container_width=True, hide_index=True)
-
-with tab4:
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-        st.markdown('<div class="section-header">Feature Importance (iTransformer Attention)</div>',
-                    unsafe_allow_html=True)
-        features = ["Vsw", "Bz", "Bt", "Density", "Pdyn",
-                    "Bz_dur", "Storm_onset", "Vsw_6h", "Bz_6h", "Bz×Vsw"]
-        importance = np.array([0.18, 0.28, 0.12, 0.08, 0.10,
-                                0.11, 0.05, 0.04, 0.03, 0.01])
-        # Amplify if storm
-        if storm_active:
-            importance[1] *= 1.5  # Bz more important in storms
-            importance /= importance.sum()
-
-        fig_imp = go.Figure(go.Bar(
-            y=features, x=importance, orientation="h",
-            marker=dict(
-                color=importance,
-                colorscale=[[0, "#1a3a6a"], [0.5, "#3b82f6"], [1, "#9f7aea"]],
-            )
-        ))
-        fig_imp.update_layout(**PLOT_THEME, height=350, showlegend=False,
-                               xaxis_title="Attention Weight")
-        st.plotly_chart(fig_imp, use_container_width=True)
-
-    with col_b:
-        st.markdown('<div class="section-header">Bz Gate Activation Over Time</div>',
-                    unsafe_allow_html=True)
-        gate_ts = np.clip(0.1 + 0.05 * np.maximum(-bz_ts, 0), 0, 1)
-        fig_gate = go.Figure()
-        fig_gate.add_trace(go.Scatter(
-            x=t, y=gate_ts,
-            fill="tozeroy",
-            fillcolor="rgba(159,122,234,0.15)",
-            line=dict(color="#9f7aea", width=2),
-            name="Gate Activation",
-        ))
-        fig_gate.add_hline(y=0.5, line_dash="dash",
-                            line_color="rgba(255,255,255,0.3)",
-                            annotation_text="Storm threshold")
-        fig_gate.update_layout(**PLOT_THEME, height=350,
-                                yaxis_title="Gate Value",
-                                xaxis_title="Time (hours)",
-                                yaxis_range=[0, 1.05])
-        st.plotly_chart(fig_gate, use_container_width=True)
-
-    st.markdown("""
-    <div style="background:rgba(15,25,50,0.6); border-radius:12px; padding:16px;
-                border:1px solid rgba(99,179,237,0.15); margin-top:8px;">
-        <b style="color:#63b3ed;">Physics Interpretability</b><br>
-        <span style="color:#a0aec0; font-size:0.85rem;">
-        The <b>iTransformer attention weights</b> show which solar wind feature
-        combinations the model learned as flux drivers — physically interpretable
-        as the Dungey reconnection cycle (Bz × Vsw → energy input).<br><br>
-        The <b>Bz Gate</b> (your original idea) amplifies model signals when
-        IMF Bz turns southward, encoding the known physics of storm onset.
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Footer
