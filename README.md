@@ -11,9 +11,9 @@ STORM-PhysNet is a domain-aware deep learning framework for forecasting high-ene
 
 ## 🛰️ Architecture Overview
 
-The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 14</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window.
+The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 16</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window.
 
-![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
+![System Architecture Overview](ieee_paper/figures/fig_system_architecture.png)
 
 ### Adaptive Propagation Delay
 Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. This module dynamically learns the solar wind transit time *τ* = *f<sub>θ</sub>*(**X**<sub>sw</sub>) ∈ [0.5, 1.5] hours. The input features are continuously shifted in the temporal domain such that **X**'<sub>sw</sub>(*t*) = **X**<sub>sw</sub>(*t* - *τ*), perfectly aligning the upstream drivers with the target geostationary response.
@@ -90,34 +90,34 @@ STORM-PhysNet/
 ### 1. Multi-Horizon Reliability
 At the critical 45-minute horizon, standard Transformers are highly unstable across random seeds. STORM-PhysNet remains strictly reliable and outperforms baselines across all horizons.
 
-![Multi-Horizon PE](interpretations/Figures/fig_horizon_pe.png)
+![Multi-Horizon PE](ieee_paper/figures/fig1_horizon_pe.png)
 
 ### 2. Ablation & Physics Constraints
 Removing the Adaptive Delay costs **3.0 storm PE points**; removing the Physics Gate costs **2.3 storm PE points**.
 
-![Ablation Results](interpretations/Figures/fig_ablation_6h.png)
+![Ablation Results](ieee_paper/figures/fig4_ablation_multi.png)
 
 The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.0 hours**:
 
-![Propagation Delay Histogram](interpretations/Figures/fig_physics_tau_hist.png)
+![Propagation Delay Histogram](ieee_paper/figures/fig6_delay_hist.png)
 
 The physics gate strictly activates during geomagnetic storm periods (Bz < 0 conditions), acting as an attention amplifier exactly when it matters most:
 
-![Gate Activation](interpretations/Figures/fig_physics_gate_storm_quiet.png)
+![Gate Activation](ieee_paper/figures/fig7_gate_activation.png)
 
 ### 3. Feature Importance & Event Case Studies
 A massive permutation importance analysis (over 7,800 random feature shuffles) quantitatively confirms the model fundamentally relies on key solar wind drivers (like Bz and Flow Speed) over autoregressive persistence.
 
-![Permutation Feature Importance](interpretations/Figures/fig_feature_importance.png)
+![Permutation Feature Importance](ieee_paper/figures/fig_feature_importance.png)
 
 During intense geomagnetic activity, the model tracks rapid flux enhancements successfully while maintaining tight bounds during quiet periods.
 
-![Event Case Studies](interpretations/Figures/fig_case_studies.png)
+![Event Case Studies](ieee_paper/figures/fig_timeseries_storm.png)
 
 ### 4. Cross-Satellite Transfer (GRASP)
 Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only **~73K parameters** recovers robust skill ($PE_{6h} = 0.564$), demonstrating high practical value for newly commissioned space weather missions with scarce data.
 
-![GRASP Transfer Learning](interpretations/Figures/fig_grasp_transfer.png)
+![GRASP Transfer Learning](ieee_paper/figures/fig8_grasp_domain_gap.png)
 
 ### 5. Uncertainty & Residual Diagnostics
 Monte-Carlo dropout provides highly reliable 95% uncertainty bounds during varying solar wind conditions.
@@ -126,7 +126,7 @@ Monte-Carlo dropout provides highly reliable 95% uncertainty bounds during varyi
 
 Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zero-centered and Gaussian error distribution compared to the standard Transformer baseline.
 
-![Residual Diagnostics](interpretations/Figures/fig_residual_storm_bz.png)
+![Residual Diagnostics](ieee_paper/figures/fig_residual_storm_bz.png)
 
 ---
 
@@ -148,7 +148,7 @@ When a simulated Coronal Mass Ejection (CME) impacts (*B<sub>z</sub>* < -10 nT, 
 - The ***B<sub>z</sub>* Physics Gate** activation spikes to > 90%, dynamically altering the internal feature representation.
 - The **Multi-Horizon Forecasting Heads** project massive flux enhancements with appropriately widened uncertainty bounds.
 <p align="center">
-  <img src="interpretations/Figures/fig_dashboard_storm_flux.png" width="100%">
+  <img src="ieee_paper/figures/fig_dashboard_storm_flux.png" width="100%">
   <br><br>
   <img src="interpretations/Figures/fig_dashboard_storm_solarwind.png" width="100%">
 </p>
