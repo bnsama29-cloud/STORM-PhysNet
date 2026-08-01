@@ -1,0 +1,7 @@
+{
+  "status": "ok",
+  "n_test_rows_approx": 510,
+  "zero_shot_6h_pe_all": 0.08248025178909302,
+  "finetuned_6h_pe_all": 0.6001229286193848,
+  "warning": "If PE is far below paper NB4 numbers, keep paper GRASP table from NB4 and treat this as a reproducibility check only."
+}

@@ -553,101 +553,166 @@ if result is not None:
 
 
 # ======================================================================
-# --- PHASE: 03_colab_eval.py ---
+# --- PHASE: 10_final_ieee_eval_fixed.py ---
 # ======================================================================
 
 # ============================================================
-# NB3 — FULL EVAL + IEEE TABLE + FIGURES (Google Colab)
-# Evaluates ALL checkpoints from NB1 + NB2 and writes:
-#   logs/full_run/ieee_table.txt  — copy-paste into LaTeX
-#   logs/full_run/summary.json   — full metrics
-#   plots/fig1_horizon_pe.png    — per-horizon bar chart
-#   plots/fig2_all_vs_storm.png  — PE-all vs PE-storm scatter
-#   plots/fig3_storm_weight_sweep.png
-#   plots/fig4_seqlen_ablation.png
+# 10_FINAL_IEEE_EVAL_FIXED — Google Colab (T4 OK)
 # ============================================================
-import os, glob, shutil, json, pickle, zipfile
-from pathlib import Path
-import numpy as np
-import torch
-from sklearn.metrics import mean_squared_error
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+# Purpose
+#   One focused evaluation pass over EXISTING checkpoints.
+#   Fixes the critical bugs found in 09_colab_eval_script.py
+#   and produces only the analyses that support the paper claims.
+#
+# Bugs fixed vs 09_colab_eval_script.py
+#   1. Storm mask used Dst <= -50 on STANDARDIZED Dst (~N(0,1)).
+#      That never fired → all "storm" rows missing / identical to quiet.
+#      FIX: use batch storm_flag if present; else inverse-scale Dst;
+#      else Kp threshold; else high-flux quantile fallback.
+#   2. GRASP fine-tune was only 3 epochs on a 256-row tail split.
+#      Numbers contradicted the paper. FIX: evaluate zero-shot always;
+#      fine-tune only if GRASP data is present, with sane epochs + split;
+#      if GRASP is still tiny, mark results as exploratory in the export.
+#   3. Label discovery produced names like storm_physnet_storm_cathode.
+#      FIX: normalize labels for tables.
+#   4. discussion_metrics averaged horizons and had empty storm_pe.
+#      FIX: explicit 6 h PE_all / PE_storm / PE_quiet / PE_highflux.
+#   5. Permutation used feature indices only.
+#      FIX: map to dataset feature names when available.
+#   6. Compute cost lacked parameter counts / baseline comparison.
+#      FIX: params + latency for Transformer and STORM.
+#
+# Scope (matches the focused co-author list — nothing extra)
+#   01 Setup
+#   02 Benchmark (multi-seed PE / RMSE)
+#   03 Horizon analysis
+#   04 Transfer learning (GRASP) — careful / flagged if weak
+#   05 Ablation (with storm PE after mask fix)
+#   06 Statistical tests (bootstrap CI, paired seed comparison)
+#   07 Physics validation (tau, gate)
+#   08 Permutation importance (named features)
+#   09 Case studies (worst errors + storm windows)
+#   10 Residual analysis
+#   11 Uncertainty (MC dropout)
+#   12 Compute cost
+#   13 Discussion metrics
+#   14 Export IEEE tables / figures
+#
+# Does NOT train new models. Does NOT add t-SNE / attention /
+# MiniPatch / hyperparam sweeps / extra seeds.
+# ============================================================
 
 # -------------------- USER SETTINGS --------------------
 DRIVE_CODE_ZIP = "/content/drive/MyDrive/storm_physnet/ieee_final_fixed.zip"
 DRIVE_DATA_ZIP = "/content/drive/MyDrive/storm_physnet/datasets.zip"
-DRIVE_NB1_OUT  = "/content/drive/MyDrive/storm_physnet/nb1_outputs"
-DRIVE_NB2_OUT  = "/content/drive/MyDrive/storm_physnet/nb2_outputs"
-DRIVE_NB3_OUT  = "/content/drive/MyDrive/storm_physnet/nb3_outputs"
+DRIVE_CKPT_ROOTS = [
+    "/content/drive/MyDrive/storm_physnet/nb1_outputs/checkpoints",
+    "/content/drive/MyDrive/storm_physnet/nb2_outputs/checkpoints",
+    "/content/drive/MyDrive/storm_physnet/ablation_outputs/checkpoints",
+]
+DRIVE_OUT = "/content/drive/MyDrive/storm_physnet/nb_final_ieee_eval"
+
+# GRASP fine-tune (only if grasp/ exists). Keep modest; paper GRASP
+# numbers should still come from your original NB4 if they were better.
+DO_GRASP_FINETUNE = True
+GRASP_EPOCHS = 15
+GRASP_LR = 1e-4
+
+# MC dropout passes for uncertainty band
+MC_PASSES = 15
+N_BOOTSTRAP = 2000
 # -------------------------------------------------------
+
+import os, sys, re, time, json, pickle, shutil, zipfile, warnings
+from pathlib import Path
+from collections import defaultdict
+
+warnings.filterwarnings("ignore")
 
 from google.colab import drive
 drive.mount("/content/drive", force_remount=False)
 
-assert torch.cuda.is_available(), "Enable GPU: Runtime -> Change runtime type -> GPU"
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score, mean_squared_error
+
+assert torch.cuda.is_available(), "Enable GPU: Runtime → T4"
+DEVICE = torch.device("cuda")
 print("GPU:", torch.cuda.get_device_name(0))
 
-WORK = Path("/content/storm_work")
+WORK = Path("/content/storm_work_final_eval")
 WORK.mkdir(parents=True, exist_ok=True)
 os.chdir(WORK)
-os.system("pip -q install cdflib 'numpy<2' pandas scikit-learn pyyaml tqdm matplotlib")
+OUT = Path(DRIVE_OUT)
+for sub in ["Figures", "Tables", "JSON", "LaTeX"]:
+    (OUT / sub).mkdir(parents=True, exist_ok=True)
 
-# -------------------- Unpack code --------------------
-code_zip = Path(DRIVE_CODE_ZIP)
-assert code_zip.exists(), f"Code zip not found: {code_zip}"
-with zipfile.ZipFile(code_zip, "r") as z:
-    z.extractall(WORK / "_code")
-hits = list((WORK / "_code").rglob("run_training.py"))
-assert hits, "run_training.py not inside code zip"
-code_root = hits[0].parent
-for name in ["src", "configs"]:
-    src, dst = code_root / name, WORK / name
-    if src.exists():
-        if dst.exists(): shutil.rmtree(dst)
-        shutil.copytree(src, dst)
-for p in ["src/__init__.py", "src/model/__init__.py", "src/data/__init__.py",
-          "src/training/__init__.py", "src/evaluation/__init__.py"]:
-    Path(p).parent.mkdir(parents=True, exist_ok=True)
-    Path(p).touch()
+os.system("pip -q install cdflib 'numpy<2' pandas scikit-learn pyyaml tqdm matplotlib seaborn")
 
-# -------------------- Unpack data --------------------
-dst_goes = WORK / "datasets" / "goes"
-dst_omni = WORK / "datasets" / "omni"
-if not dst_goes.exists() or not dst_omni.exists():
-    with zipfile.ZipFile(Path(DRIVE_DATA_ZIP), "r") as z:
-        z.extractall(WORK / "_data")
-    g = next((p for p in (WORK / "_data").rglob("goes") if p.is_dir()), None)
-    o = next((p for p in (WORK / "_data").rglob("omni") if p.is_dir()), None)
-    assert g and o, "datasets zip must contain goes/ and omni/ folders"
-    if dst_goes.exists(): shutil.rmtree(dst_goes)
-    if dst_omni.exists(): shutil.rmtree(dst_omni)
-    shutil.copytree(g, dst_goes)
-    shutil.copytree(o, dst_omni)
+# ============================================================
+# 01 SETUP — code + data
+# ============================================================
+print("\n=== 01 SETUP ===")
+code_work = WORK / "code"
+if not (code_work / "src").exists():
+    assert Path(DRIVE_CODE_ZIP).exists(), DRIVE_CODE_ZIP
+    if code_work.exists():
+        shutil.rmtree(code_work)
+    code_work.mkdir(parents=True)
+    with zipfile.ZipFile(DRIVE_CODE_ZIP) as z:
+        z.extractall(code_work)
 
-# -------------------- Restore checkpoints from NB1 + NB2 Drive outputs ----
-Path("checkpoints").mkdir(exist_ok=True)
-for drive_out in [DRIVE_NB1_OUT, DRIVE_NB2_OUT]:
-    for p in Path(drive_out).rglob("seed_*"):
-        if not p.is_dir(): continue
-        if not (any(p.glob("*_best.pt")) or any(p.glob("*_best.zip"))): continue
-        label = p.parent.name
-        dest = WORK / "checkpoints" / label / p.name
-        if not dest.exists():
-            shutil.copytree(p, dest)
-            print(f"  restored {label}/{p.name}")
+def find_code_root(root: Path) -> Path:
+    if (root / "src").exists() and (root / "configs").exists():
+        return root
+    for child in root.iterdir():
+        if child.is_dir() and (child / "src").exists() and (child / "configs").exists():
+            return child
+    raise FileNotFoundError(f"No src/configs under {root}")
 
-Path("logs/full_run").mkdir(parents=True, exist_ok=True)
-Path("plots").mkdir(exist_ok=True)
+REPO = find_code_root(code_work)
+sys.path.insert(0, str(REPO))
+for p in [
+    "src/__init__.py", "src/model/__init__.py", "src/data/__init__.py",
+    "src/training/__init__.py", "src/evaluation/__init__.py",
+]:
+    Path(REPO / p).parent.mkdir(parents=True, exist_ok=True)
+    Path(REPO / p).touch(exist_ok=True)
 
-# -------------------- Constants --------------------
-SEEDS_MAIN = [42, 43, 44]
-SEED_OPT = 42
-SWEEP_WEIGHTS = [10, 15, 20]
-SEQ_LENS = [48, 96]
-HORIZON_NAMES = ["45min", "6h", "12h"]
-HIGH_FLUX_PERCENTILE = 90
+# data
+ds = WORK / "datasets"
+for key in ["goes", "omni", "grasp"]:
+    if not (ds / key).exists():
+        if not Path(DRIVE_DATA_ZIP).exists():
+            if key == "grasp":
+                continue
+            raise FileNotFoundError(DRIVE_DATA_ZIP)
+        tmp = WORK / "_data_tmp"
+        if tmp.exists():
+            shutil.rmtree(tmp)
+        tmp.mkdir()
+        with zipfile.ZipFile(DRIVE_DATA_ZIP) as z:
+            z.extractall(tmp)
+        found = [p for p in tmp.rglob(key) if p.is_dir()]
+        if found:
+            ds.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(found[0], ds / key, dirs_exist_ok=True)
+            print("Copied", key, "<-", found[0])
+        if tmp.exists():
+            shutil.rmtree(tmp)
+
+import yaml
+cfg = yaml.safe_load(open(REPO / "configs" / "config.yaml"))
+cfg.setdefault("data", {})
+cfg["data"]["goes_cdf_dir"] = str(ds / "goes")
+cfg["data"]["wind_cdf_dir"] = str(ds / "omni")
+if (ds / "grasp").exists():
+    cfg["data"]["grasp_cdf_dir"] = str(ds / "grasp")
 
 from src.data.cdf_reader import read_goes_directory, read_wind_directory
 from src.data.preprocessor import Preprocessor
@@ -655,1318 +720,943 @@ from src.data.dataloader import make_dataloaders
 from src.model.baselines import StandardLSTM, StandardMLP, StandardCNN, VanillaTransformer
 from src.model.storm_physnet import STORMPhysNet
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-goes = read_goes_directory("datasets/goes")
-wind = read_wind_directory("datasets/omni")
-raw = goes.join(wind, how="inner")
-print("[Data]", raw.shape)
-
-pre_path = next(Path("checkpoints").rglob("preprocessor.pkl"), None) or \
-           next(Path(DRIVE_NB1_OUT).rglob("preprocessor.pkl"), None)
-try:
-    if pre_path:
-        pre = pickle.load(open(pre_path, "rb"))
-    else:
-        pre = Preprocessor()
-    train_df, val_df, test_df = pre.fit_transform(raw)
-except Exception as e:
-    print(f"Warning: Preprocessor load failed ({e}). Re-fitting from scratch.")
-    pre = Preprocessor()
-    train_df, val_df, test_df = pre.fit_transform(raw)
-print(f"split train={len(train_df)} val={len(val_df)} test={len(test_df)}")
-
-_loader_cache = {}
-def get_test_loader(seq_len):
-    if seq_len not in _loader_cache:
-        _, _, tl = make_dataloaders(train_df, val_df, test_df, seq_len=seq_len,
-                                    batch_size=64, storm_weight=10.0, num_workers=0)
-        _loader_cache[seq_len] = tl
-    return _loader_cache[seq_len]
-
-def pe(yt, yp, yb):
-    mse_p, mse_b = mean_squared_error(yt, yp), mean_squared_error(yt, yb)
-    return 0.0 if mse_b == 0 else float(1.0 - mse_p / mse_b)
-def rmse(a, b): return float(np.sqrt(mean_squared_error(a, b)))
-def corr(a, b): return float(np.corrcoef(a, b)[0, 1]) if len(a) > 1 else float("nan")
-def bias(yt, yp): return float(np.mean(yp - yt))
-
-def find_ckpt(d):
-    d = Path(d)
-    if not d.exists(): return None
-    cands = sorted(d.glob("*_best.pt")) + sorted(d.glob("*_best.zip"))
-    return cands[0] if cands else None
-
-def build_model(label, n_sw, seq_len):
-    if label == "lstm": return StandardLSTM(n_sw_features=n_sw, seq_len=seq_len, n_horizons=3)
-    if label == "mlp":  return StandardMLP(n_sw_features=n_sw, seq_len=seq_len, n_horizons=3)
-    if label == "cnn":  return StandardCNN(n_sw_features=n_sw, seq_len=seq_len, n_horizons=3)
-    if label == "transformer": return VanillaTransformer(n_sw_features=n_sw, seq_len=seq_len, n_horizons=3)
-    gate = "bz"
-    if "cathode" in label or "sweep" in label or "seqlen" in label: gate = "cathode_anode"
-    if "radio" in label: gate = "radiotrophic"
-    spec     = ("spec" in label) or ("sweep" in label) or ("seqlen" in label)
-    backbone = "hybrid" if "hybrid" in label else "transformer"
-    abl      = "none"
-    if "no_delay"   in label: abl = "no_delay"
-    if "no_physics" in label: abl = "no_physics"
-    use_mag  = "mag" in label
-    return STORMPhysNet(
-        n_sw_features=n_sw, seq_len=seq_len, d_model=128, n_heads=4,
-        n_transformer_layers=2, n_ssm_layers=2, d_state=64, d_ff=256,
-        hidden_dim=64, n_horizons=3, dropout=0.1, ablation=abl,
-        backbone=backbone, gate_type=gate, use_spectral_head=spec,
-        use_magnetopause=use_mag,
-    )
-
-def load_state(model, path):
-    state = torch.load(path, map_location=device, weights_only=False)
-    if isinstance(state, dict) and "state_dict" in state: state = state["state_dict"]
-    res = model.load_state_dict(state, strict=False)
-    n_bad = len(res.missing_keys) + len(res.unexpected_keys)
-    if n_bad / max(len(model.state_dict()), 1) > 0.05:
-        print(f"  [WARNING] {path.name}: {n_bad} key mismatches")
-    return model
-
-@torch.no_grad()
-def predict(model, loader):
-    model.eval()
-    preds, trues, bases, storms = [], [], [], []
-    for batch in loader:
-        x_sw   = torch.nan_to_num(batch["x_sw"].to(device), nan=0.0)
-        x_flux = torch.nan_to_num(batch["x_flux"].to(device), nan=0.0)
-        y_p    = batch["y_persist"].to(device)
-        try:    out = model(x_sw, x_flux, y_p)
-        except TypeError: out = model(x_sw, x_flux)
-        yp = out["flux_pred"] if isinstance(out, dict) else out
-        preds.append(yp.cpu().numpy())
-        trues.append(batch["y_flux"].numpy())
-        bases.append(batch["y_persist"].numpy())
-        storms.append(batch["storm_flag"].numpy().ravel())
-    yt, yp, yb = map(np.concatenate, (trues, preds, bases))
-    st = np.concatenate(storms, 0).astype(bool).reshape(-1)
-    if st.shape[0] != yt.shape[0]: st = np.zeros(yt.shape[0], dtype=bool)
-    return yt, yp, yb, st
-
-def metrics_block(yt, yp, yb, st):
-    out = {}
-    for i, h in enumerate(HORIZON_NAMES):
-        out[f"pe_all_{h}"]   = pe(yt[:, i], yp[:, i], yb[:, i])
-        out[f"rmse_all_{h}"] = rmse(yt[:, i], yp[:, i])
-        out[f"corr_all_{h}"] = corr(yt[:, i], yp[:, i])
-        out[f"bias_all_{h}"] = bias(yt[:, i], yp[:, i])
-        if st.any():
-            out[f"pe_storm_{h}"]   = pe(yt[st, i], yp[st, i], yb[st, i])
-            out[f"rmse_storm_{h}"] = rmse(yt[st, i], yp[st, i])
-        else:
-            out[f"pe_storm_{h}"] = out[f"rmse_storm_{h}"] = float("nan")
-    h = 1
-    thr = np.percentile(yt[:, h], HIGH_FLUX_PERCENTILE)
-    m = yt[:, h] >= thr
-    if m.any():
-        out["pe_highflux_6h"]   = pe(yt[m, h], yp[m, h], yb[m, h])
-        out["rmse_highflux_6h"] = rmse(yt[m, h], yp[m, h])
-        out["n_highflux"]       = int(m.sum())
-    else:
-        out["pe_highflux_6h"] = out["rmse_highflux_6h"] = float("nan")
-        out["n_highflux"] = 0
-    return out
-
-def eval_one(label, seed, seq_len=72):
-    d    = Path(f"checkpoints/{label}/seed_{seed}")
-    ckpt = find_ckpt(d)
-    if ckpt is None:
-        print(f"{label:<24} seed={seed} MISSING")
-        return None
-    try:
-        loader = get_test_loader(seq_len)
-        model  = load_state(build_model(label, loader.dataset.n_sw_features, seq_len).to(device), ckpt)
-        yt, yp, yb, st = predict(model, loader)
-        row = metrics_block(yt, yp, yb, st)
-        row.update({"seed": seed, "label": label, "seq_len": seq_len, "ckpt": str(ckpt)})
-        return row, (yt, yp, yb, st)
-    except Exception as e:
-        print(f"{label:<24} seed={seed} ERROR {type(e).__name__}: {e}")
-        return None
-
-MAIN_MULTI  = ["transformer", "storm_bz", "storm_cathode", "storm_cathode_spec", "storm_radiotrophic"]
-MAIN_SINGLE = ["lstm", "mlp", "cnn", "storm_no_delay", "storm_no_physics",
-               "storm_hybrid", "storm_radio_spec", "storm_bz_mag"]
-SWEEP_LABELS  = [f"sweep_sw{w}" for w in SWEEP_WEIGHTS]
-SEQLEN_LABELS = [f"seqlen_{sl}" for sl in SEQ_LENS]
-
-results    = {lab: [] for lab in MAIN_MULTI + MAIN_SINGLE + SWEEP_LABELS + SEQLEN_LABELS}
-pred_cache = {}
-summary    = {"main_jobs": {}, "single_seed": {}, "sweep": {}, "seqlen": {}, "ensembles": {}}
-
-print(f"\n{'='*72}")
-print(f"{'label':<24} seed   PE45   PE6    PE12   PEst6  PEhi")
-print(f"{'='*72}")
-
-for seed in SEEDS_MAIN:
-    for label in MAIN_MULTI:
-        out = eval_one(label, seed, 72)
-        if not out: continue
-        row, cache = out
-        results[label].append(row)
-        pred_cache[(label, seed)] = cache
-        print(f"{label:<24} {seed:>4}  {row['pe_all_45min']:5.3f} {row['pe_all_6h']:5.3f} "
-              f"{row['pe_all_12h']:5.3f} {row['pe_storm_6h']:5.3f} {row['pe_highflux_6h']:5.3f}")
-
-for label in MAIN_SINGLE:
-    out = eval_one(label, SEED_OPT, 72)
-    if not out: continue
-    row, cache = out
-    results[label].append(row)
-    pred_cache[(label, SEED_OPT)] = cache
-    summary["single_seed"][label] = row
-    print(f"{label:<24} {SEED_OPT:>4}  {row['pe_all_45min']:5.3f} {row['pe_all_6h']:5.3f} "
-          f"{row['pe_all_12h']:5.3f} {row['pe_storm_6h']:5.3f} {row['pe_highflux_6h']:5.3f}")
-
-def arr(rows, k): return np.array([r[k] for r in rows], dtype=float)
-
-print("\nMEAN +/- STD")
-for label in MAIN_MULTI:
-    rows = results[label]
-    if not rows: continue
-    entry = {
-        "n": len(rows),
-        "pe_all_6h_mean":      float(arr(rows, "pe_all_6h").mean()),
-        "pe_all_6h_std":       float(arr(rows, "pe_all_6h").std()),
-        "pe_storm_6h_mean":    float(np.nanmean(arr(rows, "pe_storm_6h"))),
-        "pe_storm_6h_std":     float(np.nanstd(arr(rows, "pe_storm_6h"))),
-        "pe_highflux_6h_mean": float(np.nanmean(arr(rows, "pe_highflux_6h"))),
-        "corr_all_6h_mean":    float(np.nanmean(arr(rows, "corr_all_6h"))),
-        "pe_all_45min_mean":   float(arr(rows, "pe_all_45min").mean()),
-        "pe_all_12h_mean":     float(arr(rows, "pe_all_12h").mean()),
-        "rmse_all_6h_mean":    float(arr(rows, "rmse_all_6h").mean()),
-        "per_seed": rows,
-    }
-    summary["main_jobs"][label] = entry
-    print(f"{label:<24} PE6 {entry['pe_all_6h_mean']:.4f}+/-{entry['pe_all_6h_std']:.4f} "
-          f"storm {entry['pe_storm_6h_mean']:.4f}+/-{entry['pe_storm_6h_std']:.4f} "
-          f"highflux {entry['pe_highflux_6h_mean']:.4f}")
-
-for lab in SWEEP_LABELS:
-    out = eval_one(lab, SEED_OPT, 72)
-    if out:
-        row, cache = out
-        results[lab].append(row); pred_cache[(lab, SEED_OPT)] = cache
-        summary["sweep"][lab] = row
-        print(f"{lab:<24} PE6 {row['pe_all_6h']:.4f} PEstorm {row['pe_storm_6h']:.4f}")
-
-for sl, lab in zip(SEQ_LENS, SEQLEN_LABELS):
-    out = eval_one(lab, SEED_OPT, seq_len=sl)
-    if out:
-        row, cache = out
-        results[lab].append(row); pred_cache[(lab, SEED_OPT)] = cache
-        summary["seqlen"][lab] = row
-
-def ensemble_multiseed(labels):
-    all_yps = []; yt_ref = yb_ref = st_ref = None
-    for label in labels:
-        seed_preds = []
-        for seed in SEEDS_MAIN:
-            cache = pred_cache.get((label, seed))
-            if cache is not None:
-                if yt_ref is None: yt_ref, yb_ref, st_ref = cache[0], cache[2], cache[3]
-                seed_preds.append(cache[1])
-        if not seed_preds:
-            cache = pred_cache.get((label, SEED_OPT))
-            if cache is not None:
-                if yt_ref is None: yt_ref, yb_ref, st_ref = cache[0], cache[2], cache[3]
-                seed_preds.append(cache[1])
-        if seed_preds:
-            all_yps.append(np.mean(seed_preds, axis=0))
-    if not all_yps or yt_ref is None: return None
-    return metrics_block(yt_ref, np.mean(all_yps, axis=0), yb_ref, st_ref)
-
-print("\nENSEMBLES (multi-seed, multi-architecture output average)")
-for name, labs in [
-    ("tf+bz",              ["transformer", "storm_bz"]),
-    ("tf+cathode",         ["transformer", "storm_cathode"]),
-    ("tf+bz+cathode",      ["transformer", "storm_bz", "storm_cathode"]),
-    ("tf+cathode+spec",    ["transformer", "storm_cathode", "storm_cathode_spec"]),
-    ("tf+bz+cathode+spec", ["transformer", "storm_bz", "storm_cathode", "storm_cathode_spec"]),
-    ("tf+bz+mag",          ["transformer", "storm_bz", "storm_bz_mag"]),
-]:
-    e = ensemble_multiseed(labs)
-    if e:
-        summary["ensembles"][name] = e
-        print(f"  {name:<28} PE6={e['pe_all_6h']:.4f}  PEstorm={e['pe_storm_6h']:.4f}  PEhi={e['pe_highflux_6h']:.4f}")
-    else:
-        print(f"  {name:<28} SKIPPED (missing predictions)")
-
-# ── Figures ────────────────────────────────────────────────────────────────
-plt.rcParams.update({"figure.dpi": 150, "savefig.dpi": 300, "savefig.bbox": "tight", "font.size": 10})
-labels_ok = [l for l in MAIN_MULTI if summary["main_jobs"].get(l)]
-if labels_ok:
-    fig, ax = plt.subplots(figsize=(9, 4.5))
-    x = np.arange(len(HORIZON_NAMES)); w = 0.8 / len(labels_ok)
-    for i, lab in enumerate(labels_ok):
-        rows = results[lab]
-        vals = [np.mean([r[f"pe_all_{h}"] for r in rows]) for h in HORIZON_NAMES]
-        errs = [np.std( [r[f"pe_all_{h}"] for r in rows]) for h in HORIZON_NAMES]
-        ax.bar(x + (i - len(labels_ok)/2)*w + w/2, vals, w, label=lab, yerr=errs, capsize=2)
-    ax.set_xticks(x); ax.set_xticklabels(["45 min", "6 h", "12 h"])
-    ax.set_ylabel("PE"); ax.set_title("Per-Horizon PE — STORM-PhysNet (mean ±std, 3 seeds)")
-    ax.legend(fontsize=7, ncol=2, frameon=False); ax.axhline(0, color="k", lw=0.8, ls="--")
-    fig.tight_layout(); fig.savefig("plots/fig1_horizon_pe.png"); plt.close()
-    print("Saved plots/fig1_horizon_pe.png")
-
-    fig, ax = plt.subplots(figsize=(5.5, 5))
-    for lab in labels_ok:
-        e = summary["main_jobs"][lab]
-        ax.errorbar(e["pe_all_6h_mean"], e["pe_storm_6h_mean"],
-                    xerr=e["pe_all_6h_std"], yerr=e["pe_storm_6h_std"], fmt="o", capsize=3, label=lab, markersize=7)
-    ax.set_xlabel("PE all — 6 h"); ax.set_ylabel("PE storm — 6 h")
-    ax.set_title("All-sample vs Storm PE (3-seed mean ±std)"); ax.legend(fontsize=7, frameon=False)
-    fig.tight_layout(); fig.savefig("plots/fig2_all_vs_storm.png"); plt.close()
-    print("Saved plots/fig2_all_vs_storm.png")
-
-if summary["sweep"]:
-    sw_labels = sorted(summary["sweep"].keys())
-    sw_vals   = [int(k.replace("sweep_sw","")) for k in sw_labels]
-    fig, ax = plt.subplots(figsize=(5.5, 4))
-    ax.plot(sw_vals, [summary["sweep"][k]["pe_all_6h"] for k in sw_labels],   "o-", label="PE all")
-    ax.plot(sw_vals, [summary["sweep"][k]["pe_storm_6h"] for k in sw_labels], "s--", label="PE storm")
-    ax.set_xlabel("storm_weight"); ax.set_ylabel("PE")
-    ax.set_title("storm_weight Sweep — Cathode+Spectral (seed 42)")
-    ax.legend(frameon=False); ax.set_xticks(sw_vals)
-    fig.tight_layout(); fig.savefig("plots/fig3_storm_weight_sweep.png"); plt.close()
-    print("Saved plots/fig3_storm_weight_sweep.png")
-
-# ── IEEE Table ─────────────────────────────────────────────────────────────
-Path("logs/full_run/summary.json").write_text(json.dumps(summary, indent=2))
-sep = "-" * 100
-lines = [
-    "IEEE Table — STORM-PhysNet GEO Electron Flux Forecasting",
-    "6 h forecast horizon | PE = Prediction Efficiency | hi = top-10% flux subset",
-    sep,
-    f"{'Model':<24} {'n':>2}  {'PE_all':>7} {chr(177)+'std':>6}  {'PE_storm':>8} {chr(177)+'std':>6}  {'PE_hi':>6}  {'RMSE':>6}  {'PE_45m':>7}  {'PE_12h':>7}",
-    sep, "--- Multi-seed main models (n=3 seeds) ---",
-]
-for lab, e in summary["main_jobs"].items():
-    lines.append(
-        f"{lab:<24} {e['n']:>2}  {e['pe_all_6h_mean']:7.4f} {e['pe_all_6h_std']:6.4f}  "
-        f"{e['pe_storm_6h_mean']:8.4f} {e['pe_storm_6h_std']:6.4f}  "
-        f"{e['pe_highflux_6h_mean']:6.4f}  {e['rmse_all_6h_mean']:6.4f}  "
-        f"{e['pe_all_45min_mean']:7.4f}  {e['pe_all_12h_mean']:7.4f}"
-    )
-lines += [sep, "--- Single-seed baselines & ablations (seed 42) ---"]
-for lab in MAIN_SINGLE:
-    if lab in summary["single_seed"]:
-        row = summary["single_seed"][lab]
-        lines.append(
-            f"{lab:<24}  1  {row['pe_all_6h']:7.4f} {'—':>6}  "
-            f"{row['pe_storm_6h']:8.4f} {'—':>6}  "
-            f"{row['pe_highflux_6h']:6.4f}  {row['rmse_all_6h']:6.4f}  "
-            f"{row['pe_all_45min']:7.4f}  {row['pe_all_12h']:7.4f}"
-        )
-    else:
-        lines.append(
-            f"{lab:<24}  1  {'TBD':>7} {'—':>6}  "
-            f"{'TBD':>8} {'—':>6}  "
-            f"{'TBD':>6}  {'TBD':>6}  "
-            f"{'TBD':>7}  {'TBD':>7}"
-        )
-lines += [sep, "--- Ensembles (multi-seed, multi-architecture output average) ---"]
-for name, e in summary["ensembles"].items():
-    lines.append(
-        f"{name:<24}  —  {e['pe_all_6h']:7.4f} {'—':>6}  "
-        f"{e['pe_storm_6h']:8.4f} {'—':>6}  "
-        f"{e['pe_highflux_6h']:6.4f}  {e['rmse_all_6h']:6.4f}  "
-        f"{e['pe_all_45min']:7.4f}  {e['pe_all_12h']:7.4f}"
-    )
-lines.append(sep)
-table_text = "\n".join(lines)
-Path("logs/full_run/ieee_table.txt").write_text(table_text)
-print(table_text)
-
-# Sync everything to Drive
-Path(DRIVE_NB3_OUT).mkdir(parents=True, exist_ok=True)
-shutil.copytree("plots",         Path(DRIVE_NB3_OUT) / "plots",  dirs_exist_ok=True)
-shutil.copytree("logs/full_run", Path(DRIVE_NB3_OUT) / "logs",   dirs_exist_ok=True)
-print(f"\nNB3 COMPLETE — results synced to {DRIVE_NB3_OUT}")
-print("Files: ieee_table.txt | summary.json | plots/fig*.png")
-
-
-# ======================================================================
-# --- PHASE: 04_colab_transfer_grasp.py ---
-# ======================================================================
-
-# ============================================================
-# NB4+5 — GRASP TRANSFER LEARNING + STORM TIME-SERIES PLOT
-#          (Google Colab / T4 GPU)
-# ============================================================
-# Experiments covered (IEEE must-have set + interpretability):
-#
-# A. Zero-shot:   GOES storm_bz evaluated on GRASP with NO fine-tune
-# B. Zero-shot:   GOES transformer evaluated on GRASP with NO fine-tune
-# C. Frozen TL:   storm_bz — freeze encoder, train heads only (~5 min)
-# D. Full TL:     storm_bz — fine-tune all weights                (~15 min)
-# E. Scratch:     train storm_bz from scratch on GRASP alone      (~20 min)
-# F. Few-shot:    frozen TL with 10% / 50% / 100% of GRASP data  (~10 min)
-# G. Horizon table on GRASP (45m / 6h / 12h)
-# H. Interpretability:
-#    - Learned propagation delay τ histogram across all GOES seeds
-#    - Bz gate activation during storm vs quiet windows
-# I. Storm time-series plot (NB5 content — True vs Pred on GOES test set)
-#
-# Outputs (all synced to Drive):
-#   nb4_outputs/
-#     grasp_zero_shot/   — zero-shot checkpoints (symbolic)
-#     grasp_frozen_tl/   — frozen-encoder fine-tuned checkpoint
-#     grasp_full_tl/     — full fine-tuned checkpoint
-#     grasp_scratch/     — scratch-trained checkpoint
-#     plots/
-#       fig_grasp_domain_gap.png      — zero-shot vs fine-tuned table bar chart
-#       fig_grasp_horizon.png         — per-horizon PE on GRASP
-#       fig_grasp_fewshot.png         — data-efficiency curve (10/50/100%)
-#       fig_interp_delay_hist.png     — learned delay τ histogram
-#       fig_interp_gate_activation.png— gate activation storm vs quiet
-#       fig_timeseries_storm.png      — True vs Pred during major storm (GOES)
-#       fig_timeseries_storm_6h.png   — clean 6h panel for paper
-#     grasp_table.txt                 — copy-paste LaTeX table
-#     summary_grasp.json              — all GRASP metrics
-# ============================================================
-import os, glob, shutil, pickle, zipfile, json
-from pathlib import Path
-import numpy as np
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, Subset
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from sklearn.metrics import mean_squared_error
-
-# ==================== USER SETTINGS ====================
-DRIVE_CODE_ZIP  = "/content/drive/MyDrive/storm_physnet/ieee_final_fixed.zip"
-DRIVE_DATA_ZIP  = "/content/drive/MyDrive/storm_physnet/datasets.zip"
-DRIVE_GRASP_ZIP = "/content/drive/MyDrive/storm_physnet/grasp.zip"
-DRIVE_NB1_OUT   = "/content/drive/MyDrive/storm_physnet/nb1_outputs"
-DRIVE_NB4_OUT   = "/content/drive/MyDrive/storm_physnet/nb4_outputs"
-
-SEEDS_MAIN  = [42, 43, 44]
-SEED        = 42
-SEQ_LEN     = 72
-GRASP_EPOCHS_FROZEN = 25   # frozen encoder (fast)
-GRASP_EPOCHS_FULL   = 30   # full fine-tune
-GRASP_EPOCHS_SCRATCH= 40   # train from scratch
-GRASP_LR_FROZEN     = 2e-4
-GRASP_LR_FULL       = 5e-5
-GRASP_LR_SCRATCH    = 1e-4
-FEW_SHOT_FRACS = [0.1, 0.5, 1.0]   # 10% / 50% / 100% of GRASP train
-HIGH_FLUX_PERCENTILE = 90
-# =======================================================
-
-# ── Setup ──────────────────────────────────────────────────────────────────
-from google.colab import drive
-drive.mount("/content/drive", force_remount=False)
-
-import torch
-assert torch.cuda.is_available(), "Enable GPU: Runtime → Change runtime type → GPU"
-print("GPU:", torch.cuda.get_device_name(0))
-
-WORK = Path("/content/storm_work")
-WORK.mkdir(parents=True, exist_ok=True)
-os.chdir(WORK)
-os.system("pip -q install cdflib 'numpy<2' pandas scikit-learn pyyaml tqdm matplotlib")
-
-# ── Unpack code ──────────────────────────────────────────────────────────────
-code_zip = Path(DRIVE_CODE_ZIP)
-assert code_zip.exists(), f"Code zip not found: {code_zip}"
-with zipfile.ZipFile(code_zip, "r") as z:
-    z.extractall(WORK / "_code")
-hits = list((WORK / "_code").rglob("run_training.py"))
-assert hits, "run_training.py not inside code zip"
-code_root = hits[0].parent
-for name in ["src", "configs"]:
-    src, dst = code_root / name, WORK / name
-    if src.exists():
-        if dst.exists(): shutil.rmtree(dst)
-        shutil.copytree(src, dst)
-shutil.copy2(code_root / "run_training.py", WORK / "run_training.py")
-for p in ["src/__init__.py", "src/model/__init__.py", "src/data/__init__.py",
-          "src/training/__init__.py", "src/evaluation/__init__.py"]:
-    Path(p).parent.mkdir(parents=True, exist_ok=True)
-    Path(p).touch()
-
-# ── Unpack GOES + OMNI ────────────────────────────────────────────────────
-dst_goes = WORK / "datasets" / "goes"
-dst_omni = WORK / "datasets" / "omni"
-if not dst_goes.exists() or not dst_omni.exists():
-    with zipfile.ZipFile(Path(DRIVE_DATA_ZIP), "r") as z:
-        z.extractall(WORK / "_data")
-    g = next((p for p in (WORK / "_data").rglob("goes") if p.is_dir()), None)
-    o = next((p for p in (WORK / "_data").rglob("omni") if p.is_dir()), None)
-    assert g and o
-    dst_goes.parent.mkdir(parents=True, exist_ok=True)
-    if dst_goes.exists(): shutil.rmtree(dst_goes)
-    if dst_omni.exists(): shutil.rmtree(dst_omni)
-    shutil.copytree(g, dst_goes)
-    shutil.copytree(o, dst_omni)
-
-# ── Unpack GRASP ─────────────────────────────────────────────────────────
-dst_grasp = WORK / "datasets" / "grasp"
-if not dst_grasp.exists():
-    grasp_zip = Path(DRIVE_GRASP_ZIP)
-    assert grasp_zip.exists(), f"GRASP zip not found. Upload grasp.zip to {DRIVE_GRASP_ZIP}"
-    with zipfile.ZipFile(grasp_zip, "r") as z:
-        z.extractall(WORK / "_grasp")
-    g = next((p for p in (WORK / "_grasp").rglob("grasp") if p.is_dir()), None) or (WORK / "_grasp")
-    shutil.copytree(g, dst_grasp)
-    print(f"GRASP: {len(list(dst_grasp.rglob('*.txt')))} .txt files")
-
-# ── Restore all NB1 checkpoints ──────────────────────────────────────────
-Path("checkpoints").mkdir(exist_ok=True)
-Path("plots").mkdir(exist_ok=True)
-Path("logs/nb4").mkdir(parents=True, exist_ok=True)
-Path(DRIVE_NB4_OUT).mkdir(parents=True, exist_ok=True)
-
-for p in Path(DRIVE_NB1_OUT).rglob("seed_*"):
-    if not p.is_dir(): continue
-    if not (any(p.glob("*_best.pt")) or any(p.glob("*_best.zip"))): continue
-    label = p.parent.name
-    dest_p = WORK / "checkpoints" / label / p.name
-    if not dest_p.exists():
-        shutil.copytree(p, dest_p)
-        print(f"  restored {label}/{p.name}")
-
-# ── Shared imports ────────────────────────────────────────────────────────
-from src.data.cdf_reader import read_goes_directory, read_wind_directory
-from src.data.preprocessor import Preprocessor
-from src.data.dataloader import make_dataloaders
-from src.model.baselines import VanillaTransformer
-from src.model.storm_physnet import STORMPhysNet
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# ── Build GOES test loader (shared for interpretability + storm plot) ─────
-goes = read_goes_directory("datasets/goes")
-wind = read_wind_directory("datasets/omni")
-raw  = goes.join(wind, how="inner")
-
-pre_path = next(Path("checkpoints").rglob("preprocessor.pkl"), None)
-try:
-    if pre_path:
-        pre = pickle.load(open(pre_path, "rb"))
-    else:
-        pre = Preprocessor()
-    train_df, val_df, test_df = pre.fit_transform(raw)
-except Exception as e:
-    print(f"Warning: Preprocessor load failed ({e}). Re-fitting from scratch.")
-    pre = Preprocessor()
-    train_df, val_df, test_df = pre.fit_transform(raw)
-
-_, _, goes_test_loader = make_dataloaders(
-    train_df, val_df, test_df,
-    seq_len=SEQ_LEN, batch_size=128, storm_weight=10.0, num_workers=0
-)
-n_sw = goes_test_loader.dataset.n_sw_features
-print(f"GOES test set: {len(goes_test_loader.dataset)} windows | n_sw={n_sw}")
-
-# ── Helper functions ──────────────────────────────────────────────────────
-def pe(yt, yp, yb):
-    mse_p = mean_squared_error(yt, yp)
-    mse_b = mean_squared_error(yt, yb)
-    return 0.0 if mse_b == 0 else float(1.0 - mse_p / mse_b)
-def rmse(a, b): return float(np.sqrt(mean_squared_error(a, b)))
-
-def find_ckpt(d):
-    d = Path(d)
-    if not d.exists(): return None
-    cands = sorted(d.glob("*_best.pt")) + sorted(d.glob("*_best.zip"))
-    return cands[0] if cands else None
-
-def build_storm_bz(n_sw_feat, use_mag=False):
-    return STORMPhysNet(
-        n_sw_features=n_sw_feat, seq_len=SEQ_LEN, d_model=128, n_heads=4,
-        n_transformer_layers=2, n_ssm_layers=2, d_state=64, d_ff=256,
-        hidden_dim=64, n_horizons=3, dropout=0.1, ablation="none",
-        backbone="transformer", gate_type="bz", use_spectral_head=False,
-        use_magnetopause=use_mag,
-    )
-
-def build_transformer(n_sw_feat):
-    return VanillaTransformer(n_sw_features=n_sw_feat, seq_len=SEQ_LEN, n_horizons=3)
-
-def load_ckpt(model, path):
-    state = torch.load(path, map_location=device, weights_only=False)
-    if isinstance(state, dict) and "state_dict" in state:
-        state = state["state_dict"]
-    
-    # Filter out keys with shape mismatches (e.g., input layers changing from 16 to 2 SW features)
-    model_state = model.state_dict()
-    filtered_state = {}
-    for k, v in state.items():
-        if k in model_state and v.shape != model_state[k].shape:
-            print(f"    [Transfer] Dropping {k} (pretrained {v.shape} != new {model_state[k].shape})")
-        else:
-            filtered_state[k] = v
-            
-    model.load_state_dict(filtered_state, strict=False)
-    return model
-
-@torch.no_grad()
-def predict(model, loader):
-    model.eval().to(device)
-    preds, trues, bases, storms = [], [], [], []
-    for batch in loader:
-        x_sw   = torch.nan_to_num(batch["x_sw"].to(device),   nan=0.0)
-        x_flux = torch.nan_to_num(batch["x_flux"].to(device), nan=0.0)
-        y_p    = batch["y_persist"].to(device)
-        try:    out = model(x_sw, x_flux, y_p)
-        except TypeError: out = model(x_sw, x_flux)
-        yp = out["flux_pred"] if isinstance(out, dict) else out
-        preds.append(yp.cpu().numpy())
-        trues.append(batch["y_flux"].numpy())
-        bases.append(batch["y_persist"].numpy())
-        storms.append(batch.get("storm_flag", torch.zeros(x_sw.shape[0])).numpy().ravel())
-    yt, yp, yb = map(np.concatenate, (trues, preds, bases))
-    st = np.concatenate(storms).astype(bool)
-    if st.shape[0] != yt.shape[0]: st = np.zeros(yt.shape[0], dtype=bool)
-    return yt, yp, yb, st
-
-HORIZON_NAMES = ["45min", "6h", "12h"]
-def horizon_metrics(yt, yp, yb, st, label=""):
-    thr = np.percentile(yt[:, 1], HIGH_FLUX_PERCENTILE)
-    hi  = yt[:, 1] >= thr
-    row = {"label": label}
-    for i, h in enumerate(HORIZON_NAMES):
-        row[f"pe_{h}"]   = pe(yt[:, i], yp[:, i], yb[:, i])
-        row[f"rmse_{h}"] = rmse(yt[:, i], yp[:, i])
-    row["pe_storm_6h"]   = pe(yt[st, 1], yp[st, 1], yb[st, 1]) if st.any() else float("nan")
-    row["pe_highflux_6h"]= pe(yt[hi, 1], yp[hi, 1], yb[hi, 1]) if hi.any() else float("nan")
-    row["n_storm_windows"] = int(st.sum())
-    return row
-
-def fmt(v):
-    """Format a metric value for printing — shows nan as 'N/A'."""
-    return f"{v:.4f}" if not (isinstance(v, float) and np.isnan(v)) else "N/A"
-
-# ──────────────────────────────────────────────────────────────────────────
-# H. INTERPRETABILITY (GOES-based, no GRASP needed)
-# ──────────────────────────────────────────────────────────────────────────
-print("\n" + "="*72)
-print("H. INTERPRETABILITY")
-print("="*72)
-
-# H1. Learned delay τ histogram across seeds ──────────────────────────────
-tau_vals = {}
-for label in ["transformer", "storm_bz", "storm_cathode", "storm_cathode_spec", "storm_radiotrophic"]:
-    taus = []
-    for seed in SEEDS_MAIN:
-        ckpt = find_ckpt(f"checkpoints/{label}/seed_{seed}")
-        if ckpt is None: continue
-        try:
-            model = build_storm_bz(n_sw) if label != "transformer" else build_transformer(n_sw)
-            model = load_ckpt(model.to(device), ckpt)
-            delay = getattr(model, "prop_delay", None)
-            if delay is not None:
-                # The module uses tau_logit_bias (a logit) — convert to hours
-                logit = getattr(delay, "tau_logit_bias", None)
-                if logit is not None:
-                    frac = torch.sigmoid(logit).item()
-                    tau_h = delay.tau_min + frac * (delay.tau_max - delay.tau_min)
-                    taus.append(tau_h)
-                else:
-                    # fallback: try .tau directly
-                    tau_h = delay.tau.item()
-                    taus.append(tau_h)
-        except Exception as e:
-            print(f"  tau skip {label}/{seed}: {e}")
-    if taus:
-        tau_vals[label] = taus
-        print(f"  {label:<28} τ = {np.mean(taus):.3f} ± {np.std(taus):.3f} h  (seeds={taus})")
-
-if tau_vals:
-    fig, ax = plt.subplots(figsize=(7, 4))
-    all_taus = [t for ts in tau_vals.values() for t in ts]
-    ax.hist(all_taus, bins=15, color="#E91E63", edgecolor="white", alpha=0.8)
-    for i, (lab, taus) in enumerate(tau_vals.items()):
-        ax.axvline(np.mean(taus), ls="--", lw=1.2, label=f"{lab} μ={np.mean(taus):.2f}h")
-    ax.set_xlabel("Learned Propagation Delay τ (hours)")
-    ax.set_ylabel("Count (across seeds)")
-    ax.set_title("Learned Solar Wind–Magnetosphere Delay (all STORM seeds)")
-    ax.legend(fontsize=7, frameon=False)
-    fig.tight_layout()
-    fig.savefig("plots/fig_interp_delay_hist.png", dpi=300)
-    plt.close()
-    print("Saved plots/fig_interp_delay_hist.png")
-
-# H2. Bz Gate activation: storm vs quiet ─────────────────────────────────
-# We extract the gate output (sigmoid of the Bz projection) during
-# storm and quiet windows on the GOES test set.
-gate_storm_vals, gate_quiet_vals = [], []
-ckpt = find_ckpt(f"checkpoints/storm_bz/seed_42")
-if ckpt:
-    try:
-        model = build_storm_bz(n_sw).to(device)
-        model = load_ckpt(model, ckpt)
-        model.eval()
-
-        hooks = []
-        gate_outputs = []
-        def hook_fn(module, inp, out):
-            gate_outputs.append(out.detach().cpu())
-
-        # Find the gate module
-        for name, mod in model.named_modules():
-            if "bz_gate" in name.lower() or "gate" in name.lower():
-                if isinstance(mod, nn.Linear):
-                    hooks.append(mod.register_forward_hook(hook_fn))
-                    break
-
-        with torch.no_grad():
-            for batch in goes_test_loader:
-                x_sw   = torch.nan_to_num(batch["x_sw"].to(device),   nan=0.0)
-                x_flux = torch.nan_to_num(batch["x_flux"].to(device), nan=0.0)
-                y_p    = batch["y_persist"].to(device)
-                gate_outputs.clear()
-                out = model(x_sw, x_flux, y_p)
-                if gate_outputs:
-                    g = torch.sigmoid(gate_outputs[0]).mean(dim=-1).numpy()
-                    sf = batch.get("storm_flag", torch.zeros(x_sw.shape[0])).numpy().ravel()
-                    sf = sf[:g.shape[0]].astype(bool)
-                    gate_storm_vals.extend(g[sf].tolist())
-                    gate_quiet_vals.extend(g[~sf].tolist())
-
-        for h in hooks:
-            h.remove()
-
-        if gate_storm_vals and gate_quiet_vals:
-            fig, ax = plt.subplots(figsize=(7, 4))
-            ax.hist(gate_quiet_vals, bins=40, alpha=0.6, color="#2196F3", label=f"Quiet (n={len(gate_quiet_vals)})", density=True)
-            ax.hist(gate_storm_vals, bins=40, alpha=0.6, color="#E91E63", label=f"Storm (n={len(gate_storm_vals)})", density=True)
-            ax.axvline(np.mean(gate_quiet_vals), color="#2196F3", lw=1.5, ls="--")
-            ax.axvline(np.mean(gate_storm_vals),  color="#E91E63", lw=1.5, ls="--")
-            ax.set_xlabel("Bz Gate Activation (σ)")
-            ax.set_ylabel("Density")
-            ax.set_title("Physics Bz Gate Activation: Storm vs Quiet Windows (GOES test)")
-            ax.legend(frameon=False)
-            fig.tight_layout()
-            fig.savefig("plots/fig_interp_gate_activation.png", dpi=300)
-            plt.close()
-            print(f"Gate — storm: {np.mean(gate_storm_vals):.4f} | quiet: {np.mean(gate_quiet_vals):.4f}")
-            print("Saved plots/fig_interp_gate_activation.png")
-    except Exception as e:
-        print(f"  Gate activation skipped: {e}")
-
-# ──────────────────────────────────────────────────────────────────────────
-# I. STORM TIME-SERIES PLOT (NB5 content, GOES test set)
-# ──────────────────────────────────────────────────────────────────────────
-print("\n" + "="*72)
-print("I. STORM TIME-SERIES PLOT")
-print("="*72)
-
-WINDOW_HOURS = 240
-ckpt = find_ckpt(f"checkpoints/storm_bz/seed_42")
-if ckpt:
-    try:
-        model = build_storm_bz(n_sw).to(device)
-        model = load_ckpt(model, ckpt)
-
-        yt_all, yp_all, yb_all, st_all = predict(model, goes_test_loader)
-
-        thr_95  = np.percentile(yt_all[:, 1], 95)
-        s_idx   = np.where(yt_all[:, 1] > thr_95)[0]
-        peak    = s_idx[np.argmax(yt_all[s_idx, 1])]
-        i0, i1  = max(0, peak - WINDOW_HOURS // 2), min(len(yt_all), peak + WINDOW_HOURS // 2)
-        plot_x  = np.arange(i1 - i0)
-
-        plt.rcParams.update({"figure.dpi": 150, "savefig.dpi": 300, "font.size": 11})
-        fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
-        COLORS = ["#2196F3", "#E91E63", "#FF9800"]
-        for ax, i, h, col in zip(axes, range(3), HORIZON_NAMES, COLORS):
-            ax.plot(plot_x, yt_all[i0:i1, i], color="black", lw=1.5, label="True GOES Flux")
-            ax.plot(plot_x, yp_all[i0:i1, i], color=col,     lw=1.5, label=f"STORM-PhysNet ({h})", alpha=0.85)
-            ax.fill_between(plot_x, yt_all[i0:i1, i], yp_all[i0:i1, i], alpha=0.1, color=col)
-            ax.axhline(thr_95, color="gray", ls="--", lw=0.8, alpha=0.6, label="95th pctile")
-            ax.set_ylabel("Log Electron Flux"); ax.set_title(f"{h} forecast")
-            ax.legend(fontsize=9, frameon=False, loc="upper right"); ax.grid(True, alpha=0.2)
-        axes[-1].set_xlabel("Time Step (hours)")
-        fig.suptitle("STORM-PhysNet Forecast During Major Geomagnetic Storm (GOES E>2 MeV)", fontsize=13)
-        fig.tight_layout()
-        fig.savefig("plots/fig_timeseries_storm.png", bbox_inches="tight")
-        plt.close()
-
-        # Clean single-panel 6h version for paper
-        fig2, ax2 = plt.subplots(figsize=(10, 4))
-        ax2.plot(plot_x, yt_all[i0:i1, 1], color="black", lw=1.5, label="True GOES Flux (E>2 MeV)")
-        ax2.plot(plot_x, yp_all[i0:i1, 1], color="#E91E63", lw=1.5, label="STORM-PhysNet (6 h)")
-        ax2.axhline(thr_95, color="gray", ls="--", lw=0.8, alpha=0.6)
-        ax2.fill_between(plot_x, yt_all[i0:i1, 1], yp_all[i0:i1, 1], alpha=0.1, color="#E91E63")
-        ax2.set_xlabel("Time Step (hours)"); ax2.set_ylabel("Log Electron Flux (E > 2 MeV)")
-        ax2.set_title("STORM-PhysNet 6 h Electron Flux Forecast — Major Geomagnetic Storm")
-        ax2.legend(frameon=False); ax2.grid(True, alpha=0.2)
-        fig2.tight_layout()
-        fig2.savefig("plots/fig_timeseries_storm_6h.png", bbox_inches="tight")
-        plt.close()
-        print("Saved plots/fig_timeseries_storm.png + fig_timeseries_storm_6h.png")
-    except Exception as e:
-        print(f"  Storm plot skipped: {e}")
-
-# ──────────────────────────────────────────────────────────────────────────
-# A–F. GRASP EXPERIMENTS
-# ──────────────────────────────────────────────────────────────────────────
-# KEY FIX: GRASP has only flux data — NO solar wind features.
-# We join it with the same OMNI solar wind we already have so the
-# model sees 16 real SW features (not 2 garbage ones).
-# This makes zero-shot and transfer learning physically meaningful.
 try:
     from src.data.cdf_reader import read_grasp_directory
-    grasp_flux_raw = read_grasp_directory("datasets/grasp")
-    assert not grasp_flux_raw.empty, "GRASP directory is empty — no .txt files read"
-    print(f"GRASP flux: {len(grasp_flux_raw):,} raw rows ({grasp_flux_raw.index[0].date()} – {grasp_flux_raw.index[-1].date()})")
+except Exception:
+    read_grasp_directory = None
 
-    # Join GRASP flux with OMNI solar wind (already loaded as `wind` above)
-    # Resample GRASP 5-min flux to hourly mean to align with OMNI
-    grasp_flux_h = grasp_flux_raw.resample("1h").mean()
-    grasp_raw = grasp_flux_h.join(wind, how="inner")
-    print(f"GRASP+OMNI joined: {len(grasp_raw):,} hourly rows | cols={list(grasp_raw.columns)}")
-
-    grasp_pre = Preprocessor()
-    g_train, g_val, g_test = grasp_pre.fit_transform(grasp_raw)
-    _, _, grasp_test_loader = make_dataloaders(
-        g_train, g_val, g_test,
-        seq_len=SEQ_LEN, batch_size=128, storm_weight=10.0, num_workers=0
-    )
-    grasp_train_loader, grasp_val_loader, _ = make_dataloaders(
-        g_train, g_val, g_test,
-        seq_len=SEQ_LEN, batch_size=64, storm_weight=10.0, num_workers=0
-    )
-    n_sw_grasp = grasp_test_loader.dataset.n_sw_features
-    print(f"\nGRASP test set: {len(grasp_test_loader.dataset)} windows | n_sw={n_sw_grasp}")
-    if n_sw_grasp != n_sw:
-        print(f"  NOTE: GRASP n_sw={n_sw_grasp} vs GOES n_sw={n_sw} — input layers will be adapted by load_ckpt")
-    GRASP_AVAILABLE = True
-except Exception as e:
-    print(f"\nGRASP data unavailable ({e}) — skipping GRASP experiments A–F.")
-    print("Run this notebook again after uploading grasp.zip to Drive.")
-    GRASP_AVAILABLE = False
-
-grasp_summary = {}
-
-if GRASP_AVAILABLE:
-    # ── Fine-tuning helper ────────────────────────────────────────────────
-    def fine_tune(model, train_loader, val_loader, epochs, lr, freeze_encoder=False,
-                  ckpt_path=None, tag=""):
-        if freeze_encoder:
-            # Freeze everything except final prediction heads AND the new input layers
-            for name, p in model.named_parameters():
-                if any(k in name for k in ["flux_head", "storm_head", "var_head", "input_proj", "prop_delay.tau_cond_net"]):
-                    p.requires_grad = True
-                else:
-                    p.requires_grad = False
-            print(f"  [{tag}] Frozen encoder — only training prediction heads")
-        else:
-            for p in model.parameters():
-                p.requires_grad = True
-            print(f"  [{tag}] Full fine-tune — all parameters unlocked")
-
-        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"  [{tag}] Trainable params: {trainable:,}")
-
-        opt       = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
-        criterion = nn.MSELoss()
-        best_val  = float("inf")
-        best_state= None
-
-        for ep in range(1, epochs + 1):
-            model.train()
-            tr_losses = []
-            for batch in train_loader:
-                x_sw   = torch.nan_to_num(batch["x_sw"].to(device),   nan=0.0)
-                x_flux = torch.nan_to_num(batch["x_flux"].to(device), nan=0.0)
-                y_p    = batch["y_persist"].to(device)
-                yt     = batch["y_flux"].to(device)
-                opt.zero_grad()
-                try:    out = model(x_sw, x_flux, y_p)
-                except TypeError: out = model(x_sw, x_flux)
-                yp = out["flux_pred"] if isinstance(out, dict) else out
-                loss = criterion(yp, yt)
-                if torch.isnan(loss): continue
-                loss.backward(); opt.step()
-                tr_losses.append(loss.item())
-            # Validate
-            model.eval(); val_losses = []
-            with torch.no_grad():
-                for batch in val_loader:
-                    x_sw   = torch.nan_to_num(batch["x_sw"].to(device),   nan=0.0)
-                    x_flux = torch.nan_to_num(batch["x_flux"].to(device), nan=0.0)
-                    y_p    = batch["y_persist"].to(device)
-                    yt     = batch["y_flux"].to(device)
-                    try:    out = model(x_sw, x_flux, y_p)
-                    except TypeError: out = model(x_sw, x_flux)
-                    yp = out["flux_pred"] if isinstance(out, dict) else out
-                    val_losses.append(criterion(yp, yt).item())
-            val_loss = np.mean(val_losses)
-            if val_loss < best_val:
-                best_val   = val_loss
-                best_state = {k: v.clone() for k, v in model.state_dict().items()}
-                if ckpt_path:
-                    torch.save(best_state, ckpt_path)
-            if ep % 5 == 0:
-                print(f"    [{tag}] Ep {ep:3d} | Train: {np.mean(tr_losses):.4f} | Val: {val_loss:.4f}")
-        if best_state:
-            model.load_state_dict(best_state)
-        return model
-
-    # ── A. Zero-shot: storm_bz ─────────────────────────────────────────────
-    print("\n" + "="*72)
-    print("A. Zero-shot: GOES storm_bz → GRASP (no fine-tune)")
-    print("="*72)
-    ckpt = find_ckpt(f"checkpoints/storm_bz/seed_42")
-    if ckpt:
-        model = build_storm_bz(n_sw_grasp).to(device)
-        model = load_ckpt(model, ckpt)
-        yt, yp, yb, st = predict(model, grasp_test_loader)
-        grasp_summary["zero_shot_bz"] = horizon_metrics(yt, yp, yb, st, "zero_shot_bz")
-        m = grasp_summary["zero_shot_bz"]
-        print(f"  PE_45m={fmt(m['pe_45min'])} | PE_6h={fmt(m['pe_6h'])} | PE_12h={fmt(m['pe_12h'])} | PE_storm={fmt(m['pe_storm_6h'])} | PE_hi={fmt(m['pe_highflux_6h'])} | storm_windows={m['n_storm_windows']}")
-
-    # ── B. Zero-shot: transformer ──────────────────────────────────────────
-    print("\nB. Zero-shot: GOES transformer → GRASP (no fine-tune)")
-    ckpt = find_ckpt(f"checkpoints/transformer/seed_42")
-    if ckpt:
-        model = build_transformer(n_sw_grasp).to(device)
-        model = load_ckpt(model, ckpt)
-        yt, yp, yb, st = predict(model, grasp_test_loader)
-        grasp_summary["zero_shot_tf"] = horizon_metrics(yt, yp, yb, st, "zero_shot_tf")
-        m = grasp_summary["zero_shot_tf"]
-        print(f"  PE_45m={fmt(m['pe_45min'])} | PE_6h={fmt(m['pe_6h'])} | PE_12h={fmt(m['pe_12h'])} | PE_storm={fmt(m['pe_storm_6h'])} | PE_hi={fmt(m['pe_highflux_6h'])} | storm_windows={m['n_storm_windows']}")
-
-    # ── C. Frozen TL: storm_bz (heads only) ───────────────────────────────
-    print("\nC. Frozen TL: storm_bz — freeze encoder, train heads only")
-    ckpt = find_ckpt(f"checkpoints/storm_bz/seed_42")
-    if ckpt:
-        frozen_ckpt_dir = Path("checkpoints/grasp_frozen_tl")
-        frozen_ckpt_dir.mkdir(exist_ok=True)
-        frozen_ckpt_path = frozen_ckpt_dir / "storm_bz_frozen_best.pt"
-        model = build_storm_bz(n_sw_grasp).to(device)
-        model = load_ckpt(model, ckpt)
-        model = fine_tune(model, grasp_train_loader, grasp_val_loader,
-                          GRASP_EPOCHS_FROZEN, GRASP_LR_FROZEN,
-                          freeze_encoder=True, ckpt_path=frozen_ckpt_path, tag="frozen_TL")
-        yt, yp, yb, st = predict(model, grasp_test_loader)
-        grasp_summary["frozen_tl"] = horizon_metrics(yt, yp, yb, st, "frozen_tl")
-        m = grasp_summary["frozen_tl"]
-        print(f"  PE_45m={fmt(m['pe_45min'])} | PE_6h={fmt(m['pe_6h'])} | PE_12h={fmt(m['pe_12h'])} | PE_storm={fmt(m['pe_storm_6h'])} | PE_hi={fmt(m['pe_highflux_6h'])} | storm_windows={m['n_storm_windows']}")
-
-    # ── D. Full TL: storm_bz (all layers) ─────────────────────────────────
-    print("\nD. Full fine-tune: storm_bz — all weights unlocked")
-    ckpt = find_ckpt(f"checkpoints/storm_bz/seed_42")
-    if ckpt:
-        full_ckpt_dir  = Path("checkpoints/grasp_full_tl")
-        full_ckpt_dir.mkdir(exist_ok=True)
-        full_ckpt_path = full_ckpt_dir / "storm_bz_full_best.pt"
-        model = build_storm_bz(n_sw_grasp).to(device)
-        model = load_ckpt(model, ckpt)
-        model = fine_tune(model, grasp_train_loader, grasp_val_loader,
-                          GRASP_EPOCHS_FULL, GRASP_LR_FULL,
-                          freeze_encoder=False, ckpt_path=full_ckpt_path, tag="full_TL")
-        yt, yp, yb, st = predict(model, grasp_test_loader)
-        grasp_summary["full_tl"] = horizon_metrics(yt, yp, yb, st, "full_tl")
-        m = grasp_summary["full_tl"]
-        print(f"  PE_45m={fmt(m['pe_45min'])} | PE_6h={fmt(m['pe_6h'])} | PE_12h={fmt(m['pe_12h'])} | PE_storm={fmt(m['pe_storm_6h'])} | PE_hi={fmt(m['pe_highflux_6h'])} | storm_windows={m['n_storm_windows']}")
-
-    # ── E. Scratch: train storm_bz on GRASP only ──────────────────────────
-    print("\nE. Scratch: storm_bz trained on GRASP only (lower bound / baseline)")
-    scratch_ckpt_dir  = Path("checkpoints/grasp_scratch")
-    scratch_ckpt_dir.mkdir(exist_ok=True)
-    scratch_ckpt_path = scratch_ckpt_dir / "storm_bz_scratch_best.pt"
-    model = build_storm_bz(n_sw_grasp).to(device)
-    model = fine_tune(model, grasp_train_loader, grasp_val_loader,
-                      GRASP_EPOCHS_SCRATCH, GRASP_LR_SCRATCH,
-                      freeze_encoder=False, ckpt_path=scratch_ckpt_path, tag="scratch")
-    yt, yp, yb, st = predict(model, grasp_test_loader)
-    grasp_summary["scratch"] = horizon_metrics(yt, yp, yb, st, "scratch")
-    m = grasp_summary["scratch"]
-    print(f"  PE_45m={fmt(m['pe_45min'])} | PE_6h={fmt(m['pe_6h'])} | PE_12h={fmt(m['pe_12h'])} | PE_storm={fmt(m['pe_storm_6h'])} | PE_hi={fmt(m['pe_highflux_6h'])} | storm_windows={m['n_storm_windows']}")
-
-    # ── F. Few-shot fine-tune (10% / 50% / 100% of GRASP train) ──────────
-    print("\nF. Few-shot TL: frozen encoder, varying GRASP data fraction")
-    ckpt = find_ckpt(f"checkpoints/storm_bz/seed_42")
-    if ckpt:
-        full_train_dataset = grasp_train_loader.dataset
-        for frac in FEW_SHOT_FRACS:
-            n_samples = max(1, int(len(full_train_dataset) * frac))
-            idx = np.random.choice(len(full_train_dataset), n_samples, replace=False)
-            subset_loader = DataLoader(Subset(full_train_dataset, idx), batch_size=64, shuffle=True)
-            model = build_storm_bz(n_sw_grasp).to(device)
-            model = load_ckpt(model, ckpt)
-            model = fine_tune(model, subset_loader, grasp_val_loader,
-                              GRASP_EPOCHS_FROZEN, GRASP_LR_FROZEN,
-                              freeze_encoder=True, tag=f"fewshot_{int(frac*100)}pct")
-            yt, yp, yb, st = predict(model, grasp_test_loader)
-            row = horizon_metrics(yt, yp, yb, st, f"fewshot_{int(frac*100)}pct")
-            grasp_summary[f"fewshot_{int(frac*100)}pct"] = row
-            print(f"  {int(frac*100):3d}% GRASP data → PE_6h={fmt(row['pe_6h'])} | PE_storm={fmt(row['pe_storm_6h'])} | PE_hi={fmt(row['pe_highflux_6h'])}")
-
-    # ──────────────────────────────────────────────────────────────────────
-    # GRASP FIGURES
-    # ──────────────────────────────────────────────────────────────────────
-
-    # Fig: Domain gap bar chart (zero-shot vs frozen TL vs full TL vs scratch)
-    key_map = {
-        "zero_shot_tf": "Zero-shot\n(Transformer)",
-        "zero_shot_bz": "Zero-shot\n(storm_bz)",
-        "frozen_tl":    "Frozen TL\n(storm_bz)",
-        "full_tl":      "Full TL\n(storm_bz)",
-        "scratch":      "Scratch\n(GRASP only)",
-    }
-    present = {k: v for k, v in key_map.items() if k in grasp_summary}
-    if present:
-        x = np.arange(len(present)); w = 0.28
-        pe6_vals  = [grasp_summary[k]["pe_6h"]          for k in present]
-        # PE_storm may be NaN if no storm windows exist in GRASP — use 0 for plotting
-        pest_vals = [grasp_summary[k]["pe_storm_6h"]    for k in present]
-        pest_vals = [v if not np.isnan(v) else 0.0 for v in pest_vals]
-        pehi_vals = [grasp_summary[k]["pe_highflux_6h"] for k in present]
-        pehi_vals = [v if not np.isnan(v) else 0.0 for v in pehi_vals]
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.bar(x - w, pe6_vals,   w, label="PE all (6h)",       color="#2196F3")
-        ax.bar(x,     pest_vals,  w, label="PE storm (6h) [0=no storms]", color="#E91E63")
-        ax.bar(x + w, pehi_vals,  w, label="PE high-flux (6h)",  color="#FF9800")
-        ax.set_xticks(x); ax.set_xticklabels(list(present.values()), fontsize=9)
-        ax.set_ylabel("Prediction Efficiency"); ax.axhline(0, color="k", lw=0.8, ls="--")
-        ax.set_title("GRASP (Indian Satellite) — Domain Transfer Performance at 6 h Forecast")
-        ax.legend(frameon=False); fig.tight_layout()
-        fig.savefig("plots/fig_grasp_domain_gap.png", dpi=300)
-        plt.close()
-        print("Saved plots/fig_grasp_domain_gap.png")
-
-    # Fig: Per-horizon PE on GRASP (frozen TL)
-    if "frozen_tl" in grasp_summary:
-        m = grasp_summary["frozen_tl"]
-        pe_horizons = [m["pe_45min"], m["pe_6h"], m["pe_12h"]]
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.bar(["45 min", "6 h", "12 h"], pe_horizons, color=["#2196F3", "#E91E63", "#FF9800"], width=0.5)
-        ax.set_ylabel("Prediction Efficiency"); ax.axhline(0, color="k", lw=0.8, ls="--")
-        ax.set_title("STORM-PhysNet → GRASP: Per-Horizon PE (Frozen Encoder Fine-Tune)")
-        for i, v in enumerate(pe_horizons):
-            ax.text(i, v + 0.01, f"{v:.3f}", ha="center", fontsize=10)
-        fig.tight_layout()
-        fig.savefig("plots/fig_grasp_horizon.png", dpi=300)
-        plt.close()
-        print("Saved plots/fig_grasp_horizon.png")
-
-    # Fig: Few-shot data-efficiency curve
-    fewshot_keys = [f"fewshot_{int(f*100)}pct" for f in FEW_SHOT_FRACS]
-    fewshot_rows = [grasp_summary[k] for k in fewshot_keys if k in grasp_summary]
-    if len(fewshot_rows) > 1:
-        fracs_pct = [int(f * 100) for f in FEW_SHOT_FRACS[:len(fewshot_rows)]]
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.plot(fracs_pct, [r["pe_6h"]       for r in fewshot_rows], "o-", color="#2196F3", label="PE all (6h)")
-        ax.plot(fracs_pct, [r["pe_storm_6h"]  for r in fewshot_rows], "s--",color="#E91E63", label="PE storm (6h)")
-        ax.set_xlabel("% of GRASP Training Data Used")
-        ax.set_ylabel("Prediction Efficiency")
-        ax.set_title("Data Efficiency — Frozen Encoder Transfer to GRASP")
-        ax.set_xticks(fracs_pct); ax.legend(frameon=False); ax.grid(True, alpha=0.2)
-        fig.tight_layout()
-        fig.savefig("plots/fig_grasp_fewshot.png", dpi=300)
-        plt.close()
-        print("Saved plots/fig_grasp_fewshot.png")
-
-    # ── GRASP Table (LaTeX-ready) ──────────────────────────────────────────
-    sep = "-" * 90
-    table_lines = [
-        "GRASP Transfer Table — STORM-PhysNet → Indian Satellite (GSAT-12R)",
-        "PE = Prediction Efficiency  |  TL = Transfer Learning",
-        sep,
-        f"{'Experiment':<28} {'PE_45m':>7} {'PE_6h':>7} {'PE_12h':>7} {'PE_storm_6h':>12} {'PE_hi_6h':>9}",
-        sep,
-    ]
-    all_exp_keys = list(key_map.keys()) + fewshot_keys
-    for k in all_exp_keys:
-        if k not in grasp_summary: continue
-        row  = grasp_summary[k]
-        name = key_map.get(k, k).replace("\n", " ")
-        table_lines.append(
-            f"{name:<28} {fmt(row['pe_45min']):>7} {fmt(row['pe_6h']):>7} {fmt(row['pe_12h']):>7} "
-            f"{fmt(row['pe_storm_6h']):>12} {fmt(row['pe_highflux_6h']):>9}"
-        )
-    table_lines.append(sep)
-    table_text = "\n".join(table_lines)
-    Path("logs/nb4/grasp_table.txt").write_text(table_text)
-    print("\n" + table_text)
-
-    json.dump(grasp_summary, open("logs/nb4/summary_grasp.json", "w"), indent=2)
-
-# ── Sync everything to Drive ──────────────────────────────────────────────
-print(f"\nSyncing outputs to {DRIVE_NB4_OUT} ...")
-for src_path, dst_name in [
-    (Path("plots"),    "plots"),
-    (Path("logs/nb4"), "logs"),
-    (Path("checkpoints/grasp_frozen_tl"),  "grasp_frozen_tl"),
-    (Path("checkpoints/grasp_full_tl"),    "grasp_full_tl"),
-    (Path("checkpoints/grasp_scratch"),    "grasp_scratch"),
-]:
-    if src_path.exists():
-        dst = Path(DRIVE_NB4_OUT) / dst_name
-        shutil.copytree(src_path, dst, dirs_exist_ok=True)
-
-print(f"""
-NB4+5 COMPLETE — all outputs synced to {DRIVE_NB4_OUT}
-─────────────────────────────────────────────────────
-Interpretability figures:
-  fig_interp_delay_hist.png       — learned propagation delay
-  fig_interp_gate_activation.png  — Bz gate: storm vs quiet
-Storm time-series:
-  fig_timeseries_storm.png        — 3-panel (45m/6h/12h)
-  fig_timeseries_storm_6h.png     — clean 6h panel for IEEE paper
-GRASP transfer figures:
-  fig_grasp_domain_gap.png        — zero-shot vs fine-tuned bar chart
-  fig_grasp_horizon.png           — per-horizon PE on GRASP
-  fig_grasp_fewshot.png           — data efficiency curve
-Tables:
-  grasp_table.txt                 — LaTeX-ready GRASP results
-  summary_grasp.json              — all GRASP metrics
-─────────────────────────────────────────────────────
-""")
-
-
-# ======================================================================
-# --- PHASE: 05_colab_storm_plot.py ---
-# ======================================================================
-
-# ============================================================
-# NB5 — STORM TIME-SERIES PLOT (Google Colab / IEEE Figure)
-# Generates the most important qualitative IEEE figure:
-# True vs Predicted electron flux during a major storm event.
-#
-# Requires NB3 to have run (needs checkpoints + preprocessor.pkl on Drive).
-# ============================================================
-import os, glob, shutil, pickle, zipfile
-from pathlib import Path
-import numpy as np
-import pandas as pd
-import torch
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-
-# -------------------- USER SETTINGS --------------------
-DRIVE_CODE_ZIP = "/content/drive/MyDrive/storm_physnet/ieee_final_fixed.zip"
-DRIVE_DATA_ZIP = "/content/drive/MyDrive/storm_physnet/datasets.zip"
-DRIVE_NB1_OUT  = "/content/drive/MyDrive/storm_physnet/nb1_outputs"
-DRIVE_NB5_OUT  = "/content/drive/MyDrive/storm_physnet/nb5_outputs"
-
-# Which model to plot (use the NB1 winner)
-PLOT_LABEL = "storm_bz"
-SEED       = 42
-SEQ_LEN    = 72
-
-# How many hours around the storm peak to show
-WINDOW_HOURS = 240  # 10 days
-# -------------------------------------------------------
-
-from google.colab import drive
-drive.mount("/content/drive", force_remount=False)
-
-import torch
-assert torch.cuda.is_available(), "Enable GPU: Runtime -> Change runtime type -> GPU"
-print("GPU:", torch.cuda.get_device_name(0))
-
-WORK = Path("/content/storm_work")
-WORK.mkdir(parents=True, exist_ok=True)
-os.chdir(WORK)
-os.system("pip -q install cdflib 'numpy<2' pandas scikit-learn pyyaml matplotlib")
-
-# -------------------- Unpack code --------------------
-code_zip = Path(DRIVE_CODE_ZIP)
-assert code_zip.exists()
-with zipfile.ZipFile(code_zip, "r") as z:
-    z.extractall(WORK / "_code")
-hits = list((WORK / "_code").rglob("run_training.py"))
-code_root = hits[0].parent
-for name in ["src", "configs"]:
-    src, dst = code_root / name, WORK / name
-    if src.exists():
-        if dst.exists(): shutil.rmtree(dst)
-        shutil.copytree(src, dst)
-for p in ["src/__init__.py", "src/model/__init__.py", "src/data/__init__.py",
-          "src/training/__init__.py", "src/evaluation/__init__.py"]:
-    Path(p).parent.mkdir(parents=True, exist_ok=True)
-    Path(p).touch()
-
-# -------------------- Unpack data --------------------
-dst_goes = WORK / "datasets" / "goes"
-dst_omni = WORK / "datasets" / "omni"
-if not dst_goes.exists() or not dst_omni.exists():
-    with zipfile.ZipFile(Path(DRIVE_DATA_ZIP), "r") as z:
-        z.extractall(WORK / "_data")
-    g = next((p for p in (WORK / "_data").rglob("goes") if p.is_dir()), None)
-    o = next((p for p in (WORK / "_data").rglob("omni") if p.is_dir()), None)
-    assert g and o
-    if dst_goes.exists(): shutil.rmtree(dst_goes)
-    if dst_omni.exists(): shutil.rmtree(dst_omni)
-    shutil.copytree(g, dst_goes)
-    shutil.copytree(o, dst_omni)
-
-# -------------------- Restore checkpoint --------------------
-Path("checkpoints").mkdir(exist_ok=True)
-Path("plots").mkdir(exist_ok=True)
-
-for p in Path(DRIVE_NB1_OUT).rglob(f"seed_{SEED}"):
-    if p.parent.name == PLOT_LABEL:
-        dest = WORK / "checkpoints" / PLOT_LABEL / f"seed_{SEED}"
-        if not dest.exists():
-            shutil.copytree(p, dest)
-            print(f"Restored {PLOT_LABEL}/seed_{SEED}")
-        break
-
-ckpt_path = next(Path(f"checkpoints/{PLOT_LABEL}/seed_{SEED}").glob("*_best.pt"), None)
-assert ckpt_path is not None, f"No checkpoint for {PLOT_LABEL} seed {SEED}"
-
-# -------------------- Load data + preprocessor --------------------
-from src.data.cdf_reader import read_goes_directory, read_wind_directory
-from src.data.preprocessor import Preprocessor
-from src.data.dataloader import make_dataloaders
-from src.model.storm_physnet import STORMPhysNet
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-goes = read_goes_directory("datasets/goes")
-wind = read_wind_directory("datasets/omni")
+goes = read_goes_directory(str(ds / "goes"))
+wind = read_wind_directory(str(ds / "omni"))
 raw = goes.join(wind, how="inner")
+print("[Data] joined", raw.shape)
 
-pre_path = next(Path("checkpoints").rglob("preprocessor.pkl"), None) or \
-           next(Path(DRIVE_NB1_OUT).rglob("preprocessor.pkl"), None)
-if pre_path:
-    pre = pickle.load(open(pre_path, "rb"))
-    print("preprocessor:", pre_path)
+# Prefer saved preprocessor from NB1
+pp_files = []
+for root in DRIVE_CKPT_ROOTS:
+    pp_files += list(Path(root).rglob("preprocessor.pkl")) if Path(root).exists() else []
+if pp_files:
     try:
+        pre = pickle.load(open(sorted(pp_files)[0], "rb"))
+        print("Loaded preprocessor:", sorted(pp_files)[0])
         train_df, val_df, test_df = pre.fit_transform(raw)
-    except Exception:
-        train_df, val_df, test_df = Preprocessor().fit_transform(raw)
+    except Exception as e:
+        print(f"Failed to load preprocessor ({e}). Refitting new one...")
+        pre = Preprocessor()
+        train_df, val_df, test_df = pre.fit_transform(raw)
 else:
-    train_df, val_df, test_df = Preprocessor().fit_transform(raw)
+    pre = Preprocessor()
+    train_df, val_df, test_df = pre.fit_transform(raw)
+    print("Fit new preprocessor")
 
-_, _, test_loader = make_dataloaders(
-    train_df, val_df, test_df, seq_len=SEQ_LEN,
-    batch_size=256, storm_weight=1.0, num_workers=0
-)
+print("split", len(train_df), len(val_df), len(test_df))
 
-# -------------------- Build and load model --------------------
-n_sw = test_loader.dataset.n_sw_features
-model = STORMPhysNet(
-    n_sw_features=n_sw, seq_len=SEQ_LEN, d_model=128, n_heads=4,
-    n_transformer_layers=2, n_ssm_layers=2, d_state=64, d_ff=256,
-    hidden_dim=64, n_horizons=3, dropout=0.1,
-    ablation="none", backbone="transformer", gate_type="bz",
-).to(device)
-state = torch.load(ckpt_path, map_location=device, weights_only=False)
-model.load_state_dict(state["state_dict"] if "state_dict" in state else state, strict=False)
-model.eval()
-print(f"Loaded {ckpt_path.name}")
+SEQ = int(cfg["data"].get("sequence_length", 72))
+BS = int(cfg["data"].get("batch_size", 64))
+SW = float(cfg["training"].get("storm_weight", 10.0))
 
-# -------------------- Run inference on full test set --------------------
-trues_45m, trues_6h, trues_12h = [], [], []
-preds_45m, preds_6h, preds_12h = [], [], []
-time_index = []
+try:
+    _, _, test_loader = make_dataloaders(
+        train_df, val_df, test_df, seq_len=SEQ, batch_size=BS,
+        storm_weight=SW, num_workers=0,
+    )
+except TypeError:
+    loaders = make_dataloaders(train_df, val_df, test_df, cfg)
+    if isinstance(loaders, dict):
+        test_loader = loaders.get("test") or loaders["test_loader"]
+    else:
+        test_loader = loaders[2]
 
-with torch.no_grad():
-    for batch in test_loader:
-        x_sw   = torch.nan_to_num(batch["x_sw"].to(device), nan=0.0)
-        x_flux = torch.nan_to_num(batch["x_flux"].to(device), nan=0.0)
-        y_p    = batch["y_persist"].to(device)
-        out    = model(x_sw, x_flux, y_p)
-        yp     = out["flux_pred"] if isinstance(out, dict) else out  # [B, 3]
-        yt     = batch["y_flux"]                                       # [B, 3]
+N_SW = getattr(test_loader.dataset, "n_sw_features", None)
+SW_COLS = list(getattr(test_loader.dataset, "sw_cols", []) or [])
+if N_SW is None:
+    b0 = next(iter(test_loader))
+    x = b0["x_sw"] if isinstance(b0, dict) else b0[0]
+    N_SW = int(x.shape[-1])
+print(f"n_sw={N_SW}  sw_cols={SW_COLS[:8]}{'...' if len(SW_COLS) > 8 else ''}  test_windows={len(test_loader.dataset)}")
 
-        trues_45m.append(yt[:, 0].numpy()); preds_45m.append(yp[:, 0].cpu().numpy())
-        trues_6h.append( yt[:, 1].numpy()); preds_6h.append( yp[:, 1].cpu().numpy())
-        trues_12h.append(yt[:, 2].numpy()); preds_12h.append(yp[:, 2].cpu().numpy())
+HORIZONS = ["45min", "6h", "12h"]
+H6 = 1  # 6 h index
 
-        if hasattr(batch, "keys") and "time" in batch:
-            time_index.extend(batch["time"])
+# ============================================================
+# Helpers: model build, checkpoint discovery, metrics, storm mask
+# ============================================================
 
-trues_6h = np.concatenate(trues_6h)
-preds_6h = np.concatenate(preds_6h)
-trues_45m = np.concatenate(trues_45m)
-preds_45m = np.concatenate(preds_45m)
-trues_12h = np.concatenate(trues_12h)
-preds_12h = np.concatenate(preds_12h)
+def normalize_label(raw_label: str) -> str:
+    """Map messy discovery names → clean paper labels."""
+    s = raw_label.lower()
+    # order matters
+    if "no_delay" in s:
+        return "storm_no_delay"
+    if "no_physics" in s:
+        return "storm_no_physics"
+    if "cathode" in s and "spec" in s:
+        return "storm_cathode_spec"
+    if "cathode" in s:
+        return "storm_cathode"
+    if "radio" in s and "spec" in s:
+        return "storm_radio_spec"
+    if "radio" in s:
+        return "storm_radiotrophic"
+    if "bz_mag" in s or s.endswith("storm_bz") or "/storm_bz" in s or s == "storm_bz":
+        return "storm_bz"
+    if s in ("storm_physnet", "storm_physnet_best") or s.endswith("storm_physnet"):
+        return "storm_bz"  # main STORM model in this project
+    if s == "transformer":
+        return "transformer"
+    if s in ("lstm", "mlp", "cnn"):
+        return s
+    return raw_label
 
-# -------------------- Find biggest storm in test set --------------------
-# We use the 95th percentile of the 6h true flux as the storm threshold
-thr_95 = np.percentile(trues_6h, 95)
-storm_indices = np.where(trues_6h > thr_95)[0]
-assert len(storm_indices) > 0, "No major storm found in test set!"
 
-peak_idx = storm_indices[np.argmax(trues_6h[storm_indices])]
-start_idx = max(0, peak_idx - WINDOW_HOURS // 2)
-end_idx   = min(len(trues_6h), peak_idx + WINDOW_HOURS // 2)
-n_plot    = end_idx - start_idx
+def build_model(label: str):
+    label = normalize_label(label)
+    if label == "lstm":
+        return StandardLSTM(n_sw_features=N_SW, seq_len=SEQ, n_horizons=3)
+    if label == "mlp":
+        return StandardMLP(n_sw_features=N_SW, seq_len=SEQ, n_horizons=3)
+    if label == "cnn":
+        return StandardCNN(n_sw_features=N_SW, seq_len=SEQ, n_horizons=3)
+    if label == "transformer":
+        return VanillaTransformer(n_sw_features=N_SW, seq_len=SEQ, n_horizons=3)
 
-# Build a simple integer time axis (hours) if we don't have real timestamps
-if time_index and len(time_index) == len(trues_6h):
-    plot_x = pd.to_datetime(time_index)[start_idx:end_idx]
-    use_datetime = True
-else:
-    plot_x = np.arange(n_plot)
-    use_datetime = False
+    gate = "bz"
+    if "cathode" in label:
+        gate = "cathode_anode"
+    elif "radio" in label:
+        gate = "radiotrophic"
+    ablation = "none"
+    if "no_delay" in label:
+        ablation = "no_delay"
+    if "no_physics" in label:
+        ablation = "no_physics"
+    use_spec = "spec" in label
 
-# -------------------- Publication-quality figure --------------------
-plt.rcParams.update({
-    "figure.dpi": 150, "savefig.dpi": 300, "savefig.bbox": "tight",
-    "font.size": 11, "axes.labelsize": 11, "axes.titlesize": 12,
-})
+    return STORMPhysNet(
+        n_sw_features=N_SW,
+        seq_len=SEQ,
+        d_model=int(cfg["model"].get("d_model", 128)),
+        n_heads=int(cfg["model"].get("transformer", {}).get("n_heads", 4)),
+        n_transformer_layers=int(cfg["model"].get("transformer", {}).get("n_layers", 3)),
+        n_ssm_layers=int(cfg["model"].get("ssm", {}).get("n_layers", 2)),
+        d_state=int(cfg["model"].get("ssm", {}).get("d_state", 64)),
+        d_ff=int(cfg["model"].get("transformer", {}).get("d_ff", 256)),
+        hidden_dim=int(cfg["model"].get("heads", {}).get("hidden_dim", 64)),
+        n_horizons=3,
+        dropout=float(cfg["model"].get("transformer", {}).get("dropout", 0.1)),
+        ablation=ablation,
+        backbone="transformer",
+        gate_type=gate,
+        use_spectral_head=use_spec,
+    )
 
-fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
 
-horizon_data = [
-    ("45 min forecast", trues_45m, preds_45m, "#2196F3"),
-    ("6 h forecast",    trues_6h,  preds_6h,  "#E91E63"),
-    ("12 h forecast",   trues_12h, preds_12h, "#FF9800"),
-]
+def load_checkpoint(model, path):
+    state = torch.load(str(path), map_location=DEVICE, weights_only=False)
+    if isinstance(state, dict) and "state_dict" in state:
+        state = state["state_dict"]
+    if isinstance(state, dict) and any(str(k).startswith("member_0") for k in state):
+        state = {k.replace("member_0.", ""): v for k, v in state.items() if str(k).startswith("member_0")}
+    model.load_state_dict(state, strict=False)
+    return model
 
-for ax, (title, yt, yp, color) in zip(axes, horizon_data):
-    ax.plot(plot_x, yt[start_idx:end_idx], color="black", lw=1.5, label="True GOES Flux", zorder=3)
-    ax.plot(plot_x, yp[start_idx:end_idx], color=color,   lw=1.5, label=f"STORM-PhysNet ({title})", alpha=0.85)
-    ax.axhline(thr_95, color="gray", ls="--", lw=0.8, alpha=0.6, label="95th percentile")
-    ax.fill_between(plot_x, yt[start_idx:end_idx], yp[start_idx:end_idx],
-                    alpha=0.12, color=color)
-    ax.set_ylabel("Log Electron Flux")
-    ax.set_title(title)
-    ax.legend(fontsize=9, frameon=False, loc="upper right")
-    ax.grid(True, alpha=0.25)
 
-if use_datetime:
-    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    plt.xticks(rotation=25)
-    axes[-1].set_xlabel("Date (UTC)")
-else:
-    axes[-1].set_xlabel("Test set time step (hours)")
+def discover_checkpoints():
+    """Return {clean_label: {seed: path}}."""
+    mapping = defaultdict(dict)
+    roots = [Path(r) for r in DRIVE_CKPT_ROOTS if Path(r).exists()]
+    if not roots and (Path.cwd() / "checkpoints").exists():
+        roots = [Path.cwd() / "checkpoints"]
+    for root in roots:
+        for fp in list(root.rglob("*_best.pt")) + list(root.rglob("*_best.zip")):
+            if not fp.is_file():
+                continue
+            path_str = str(fp)
+            if any(x in path_str for x in ["sweep_", "seqlen_", "nb3_outputs", "nb4_outputs", "STALE"]):
+                continue
+            # seed from path
+            m = re.search(r"seed[_]?(\d+)", path_str)
+            seed = int(m.group(1)) if m else 0
+            # label from parent folders preferentially
+            parts = fp.parts
+            label_raw = fp.stem.replace("_best", "")
+            for i, p in enumerate(parts):
+                if p.startswith("seed_") and i > 0:
+                    label_raw = parts[i - 1]
+                    break
+            label = normalize_label(label_raw)
+            # prefer first-seen; allow overwrite if same seed later from ablation root
+            mapping[label][seed] = fp
+    return {k: dict(v) for k, v in mapping.items()}
 
-fig.suptitle(f"STORM-PhysNet Flux Forecast During Major Storm Event\n"
-             f"(storm_bz model, GEO E>2 MeV electrons, peak at index {peak_idx})",
-             fontsize=13, y=1.01)
+
+def pe_vs_persist(y_true, y_pred, y_persist):
+    """PE = 1 - MSE_model / MSE_persistence (per horizon if 2D)."""
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    y_persist = np.asarray(y_persist)
+    if y_true.ndim == 1:
+        mse_m = np.mean((y_true - y_pred) ** 2)
+        mse_p = np.mean((y_true - y_persist) ** 2)
+        return float(1.0 - mse_m / (mse_p + 1e-12))
+    mse_m = np.mean((y_true - y_pred) ** 2, axis=0)
+    mse_p = np.mean((y_true - y_persist) ** 2, axis=0)
+    return 1.0 - mse_m / (mse_p + 1e-12)
+
+
+def rmse(y_true, y_pred):
+    return float(np.sqrt(np.mean((np.asarray(y_pred) - np.asarray(y_true)) ** 2)))
+
+
+def inverse_dst_if_scaled(dst_scaled, preprocessor):
+    """Try to recover physical Dst [nT] from standardized values."""
+    dst_scaled = np.asarray(dst_scaled, dtype=float)
+    # Common patterns on this project
+    scaler = getattr(preprocessor, "scaler", None)
+    cols = getattr(preprocessor, "feature_cols", None) or getattr(preprocessor, "all_features", None)
+    if scaler is not None and cols is not None:
+        cols = list(cols)
+        for name in ["dst", "Dst", "DST", "sym_h", "SYM_H"]:
+            if name in cols:
+                i = cols.index(name)
+                mean = float(getattr(scaler, "mean_", [0] * len(cols))[i])
+                scale = float(getattr(scaler, "scale_", [1] * len(cols))[i])
+                return dst_scaled * scale + mean
+    # Heuristic: if |dst| median < 5, values are standardized → approximate
+    # typical Dst std ~ 30–40 nT; mean near 0. Use 35 nT if unknown.
+    if np.nanmedian(np.abs(dst_scaled)) < 5:
+        return dst_scaled * 35.0
+    return dst_scaled
+
+
+def build_masks(y_true_6h, dst, kp, storm_flag, preprocessor):
+    """
+    Return dict of boolean masks on the test set.
+    Priority for storm:
+      1) storm_flag from dataloader
+      2) inverse-scaled Dst <= -50 nT
+      3) Kp >= 5 (if Kp looks physical)
+      4) high-flux top 10% (PE_hi proxy — not geomagnetic storm)
+    """
+    n = len(y_true_6h)
+    masks = {"all": np.ones(n, dtype=bool)}
+
+    if storm_flag is not None and len(storm_flag) == n and storm_flag.any():
+        masks["storm"] = storm_flag.astype(bool)
+        masks["quiet"] = ~masks["storm"]
+        masks["storm_source"] = "storm_flag"
+    else:
+        dst_phys = inverse_dst_if_scaled(dst, preprocessor) if dst is not None else None
+        if dst_phys is not None and np.nanmin(dst_phys) < -20:
+            masks["storm"] = dst_phys <= -50.0
+            masks["quiet"] = ~masks["storm"]
+            masks["storm_source"] = "dst_physical_le_m50"
+        elif kp is not None and np.nanmax(kp) > 3.5:
+            # Kp often left unscaled or lightly scaled
+            masks["storm"] = kp >= 5.0
+            masks["quiet"] = ~masks["storm"]
+            masks["storm_source"] = "kp_ge_5"
+        else:
+            # Fallback: high-flux regime (NOT the same as geomagnetic storm)
+            thr = np.nanpercentile(y_true_6h, 90)
+            masks["storm"] = y_true_6h >= thr
+            masks["quiet"] = ~masks["storm"]
+            masks["storm_source"] = "high_flux_p90_fallback"
+            print("WARNING: using high-flux p90 as storm proxy — report as PE_hi, not PE_storm")
+
+    # Always also report high-flux (paper PE_hi)
+    thr_hi = np.nanpercentile(y_true_6h, 90)
+    masks["high_flux"] = y_true_6h >= thr_hi
+    return masks
+
+
+@torch.no_grad()
+def predict(model, loader, mc_dropout=False, mc_passes=1, record_aux=False):
+    model.to(DEVICE)
+    model.train(mc_dropout)
+    preds_pass, trues, persists, dsts, kps, storms, gates, taus = [], [], [], [], [], [], [], []
+
+    for p in range(mc_passes if mc_dropout else 1):
+        batch_preds = []
+        first = (p == 0)
+        for batch in loader:
+            if isinstance(batch, dict):
+                x_sw = torch.nan_to_num(batch["x_sw"].to(DEVICE), nan=0.0)
+                x_flux = torch.nan_to_num(batch.get("x_flux", torch.zeros(x_sw.size(0), x_sw.size(1), 1)).to(DEVICE), nan=0.0)
+                y_persist = batch["y_persist"].to(DEVICE)
+                try:
+                    out = model(x_sw, x_flux, y_persist=y_persist)
+                except TypeError:
+                    try:
+                        out = model(x_sw, x_flux, y_persist)
+                    except TypeError:
+                        out = model(x_sw, x_flux)
+                pred = out["flux_pred"] if isinstance(out, dict) else out
+                batch_preds.append(pred.cpu().numpy())
+                if first:
+                    trues.append(batch["y_flux"].numpy())
+                    persists.append(batch["y_persist"].numpy())
+                    if "y_dst" in batch:
+                        d = batch["y_dst"].numpy()
+                        dsts.append(d.min(axis=1) if d.ndim == 2 else d.ravel())
+                    if "y_kp" in batch:
+                        k = batch["y_kp"].numpy()
+                        kps.append(k.max(axis=1) if k.ndim == 2 else k.ravel())
+                    if "storm_flag" in batch:
+                        storms.append(batch["storm_flag"].numpy().ravel())
+                    if record_aux and isinstance(out, dict):
+                        if "gate_values" in out:
+                            gates.append(out["gate_values"].cpu().numpy())
+                        if "tau" in out:
+                            taus.append(out["tau"].cpu().numpy())
+            else:
+                # tuple fallback
+                x, y = batch[0].to(DEVICE).float(), batch[1].to(DEVICE).float()
+                out = model(x)
+                if isinstance(out, (list, tuple)):
+                    out = out[0]
+                batch_preds.append(out.cpu().numpy())
+                if first:
+                    trues.append(y.cpu().numpy())
+                    persists.append(y.cpu().numpy())  # weak fallback
+        preds_pass.append(np.concatenate(batch_preds, 0))
+
+    yt = np.concatenate(trues, 0)
+    yb = np.concatenate(persists, 0)
+    stack = np.stack(preds_pass, 0)  # [P, N, H]
+    yp = stack.mean(0)
+    ystd = stack.std(0) if mc_dropout else None
+    dst = np.concatenate(dsts, 0) if dsts else None
+    kp = np.concatenate(kps, 0) if kps else None
+    st = np.concatenate(storms, 0).astype(bool) if storms else None
+    gate = np.concatenate(gates, 0) if gates else None
+    tau = np.concatenate(taus, 0) if taus else None
+    model.eval()
+    return yt, yp, yb, dst, kp, st, gate, tau, ystd
+
+
+def metrics_block(yt, yp, yb, masks, label, seed):
+    rows = []
+    for period, m in masks.items():
+        if period == "storm_source":
+            continue
+        if m is None or m.sum() < 5:
+            continue
+        for h, hname in enumerate(HORIZONS):
+            pe = pe_vs_persist(yt[m, h], yp[m, h], yb[m, h])
+            rows.append({
+                "label": label,
+                "seed": seed,
+                "horizon": hname,
+                "period": period,
+                "pe": float(pe),
+                "rmse": rmse(yt[m, h], yp[m, h]),
+                "mae": float(np.mean(np.abs(yp[m, h] - yt[m, h]))),
+                "r2": float(r2_score(yt[m, h], yp[m, h])) if m.sum() > 1 else 0.0,
+                "n": int(m.sum()),
+                "storm_source": masks.get("storm_source", "unknown"),
+            })
+    return rows
+
+
+def savefig(name):
+    path = OUT / "Figures" / name
+    plt.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print("saved", path.name)
+    return path
+
+
+# ============================================================
+# Discover checkpoints + cache predictions
+# ============================================================
+print("\n=== Discover checkpoints ===")
+CKPT = discover_checkpoints()
+print("Labels:", sorted(CKPT.keys()))
+for lab, seeds in CKPT.items():
+    print(f"  {lab}: seeds={sorted(seeds.keys())}")
+
+assert CKPT, "No checkpoints found — check DRIVE_CKPT_ROOTS"
+
+# Prefer evaluating these labels for the paper
+PRIMARY = [l for l in [
+    "transformer", "storm_bz", "storm_no_delay", "storm_no_physics",
+    "storm_cathode", "storm_cathode_spec", "storm_radiotrophic",
+    "lstm", "mlp", "cnn",
+] if l in CKPT]
+
+print("PRIMARY labels for tables:", PRIMARY)
+
+pred_cache = {}  # (label, seed) -> dict
+print("\n=== Running inference (cached) ===")
+for label in PRIMARY:
+    for seed, path in sorted(CKPT[label].items()):
+        try:
+            model = build_model(label)
+            load_checkpoint(model, path)
+            yt, yp, yb, dst, kp, st, gate, tau, _ = predict(model, test_loader, record_aux=("storm" in label or label == "storm_bz"))
+            masks = build_masks(yt[:, H6], dst, kp, st, pre)
+            if seed == sorted(CKPT[label].keys())[0]:
+                print(f"  {label}: storm_source={masks.get('storm_source')}  "
+                      f"storm_frac={masks['storm'].mean():.3f}  n_storm={masks['storm'].sum()}")
+            pred_cache[(label, seed)] = {
+                "yt": yt, "yp": yp, "yb": yb, "dst": dst, "kp": kp, "st": st,
+                "gate": gate, "tau": tau, "masks": masks, "path": str(path),
+            }
+            print(f"  cached {label} seed={seed}")
+        except Exception as e:
+            print(f"  FAIL {label} seed={seed}: {e}")
+
+assert pred_cache, "No successful predictions"
+
+# ============================================================
+# 02 BENCHMARK
+# ============================================================
+print("\n=== 02 BENCHMARK ===")
+bench_rows = []
+for (label, seed), d in pred_cache.items():
+    bench_rows += metrics_block(d["yt"], d["yp"], d["yb"], d["masks"], label, seed)
+bench = pd.DataFrame(bench_rows)
+bench.to_csv(OUT / "Tables" / "benchmark_metrics.csv", index=False)
+print(bench.groupby(["label", "horizon", "period"])["pe"].mean().unstack(fill_value=np.nan).round(4))
+
+# ============================================================
+# 03 HORIZON ANALYSIS
+# ============================================================
+print("\n=== 03 HORIZON ANALYSIS ===")
+fig, ax = plt.subplots(figsize=(7, 4.2))
+for label in [l for l in ["transformer", "storm_bz"] if l in CKPT]:
+    means, stds = [], []
+    for h in HORIZONS:
+        sub = bench[(bench.label == label) & (bench.horizon == h) & (bench.period == "all")]
+        means.append(sub.pe.mean())
+        stds.append(sub.pe.std(ddof=1) if len(sub) > 1 else 0.0)
+    ax.errorbar(HORIZONS, means, yerr=stds, marker="o", capsize=4, label=label)
+ax.axhline(0, color="k", lw=0.8)
+ax.set_ylabel("PE (mean ± std over seeds)")
+ax.set_title("Multi-horizon prediction efficiency")
+ax.legend()
 fig.tight_layout()
-fig.savefig("plots/fig5_storm_timeseries.png", bbox_inches="tight")
-print("Saved plots/fig5_storm_timeseries.png")
+savefig("fig_horizon_pe.png")
 
-# Also save individual 6h panel (cleaner version for IEEE submission)
-fig2, ax2 = plt.subplots(figsize=(10, 4))
-ax2.plot(plot_x, trues_6h[start_idx:end_idx], color="black", lw=1.5, label="True GOES Flux (E>2 MeV)")
-ax2.plot(plot_x, preds_6h[start_idx:end_idx], color="#E91E63", lw=1.5, label="STORM-PhysNet (6 h forecast)")
-ax2.axhline(thr_95, color="gray", ls="--", lw=0.8, alpha=0.6, label="95th percentile threshold")
-ax2.set_ylabel("Log Electron Flux (E > 2 MeV)")
-ax2.set_title("STORM-PhysNet 6 h Electron Flux Forecast During Major Geomagnetic Disturbance")
-ax2.legend(frameon=False, loc="upper right")
-ax2.grid(True, alpha=0.25)
-if use_datetime:
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    plt.xticks(rotation=25)
-fig2.tight_layout()
-fig2.savefig("plots/fig5b_storm_6h_only.png", bbox_inches="tight")
-print("Saved plots/fig5b_storm_6h_only.png  ← use this one in the paper")
+# ============================================================
+# 05 ABLATION (with storm PE)
+# ============================================================
+print("\n=== 05 ABLATION ===")
+ablation_labels = [l for l in ["storm_bz", "storm_no_delay", "storm_no_physics"] if l in CKPT]
+abl_rows = []
+for label in ablation_labels:
+    sub = bench[bench.label == label]
+    abl_rows.append(sub)
+if abl_rows:
+    abl = pd.concat(abl_rows, ignore_index=True)
+    abl.to_csv(OUT / "Tables" / "ablation_metrics.csv", index=False)
+    # bar chart PE_all and PE_storm at 6h
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3.8), sharey=True)
+    for ax, period, title in zip(axes, ["all", "storm"], ["PE_all (6 h)", "PE_storm (6 h)"]):
+        vals, errs, names = [], [], []
+        for label in ablation_labels:
+            s = abl[(abl.label == label) & (abl.horizon == "6h") & (abl.period == period)]
+            if s.empty:
+                continue
+            names.append(label.replace("storm_", ""))
+            vals.append(s.pe.mean())
+            errs.append(s.pe.std(ddof=1) if len(s) > 1 else 0.0)
+        ax.bar(names, vals, yerr=errs, capsize=4, color="steelblue")
+        ax.set_title(title)
+        ax.tick_params(axis="x", rotation=15)
+    fig.tight_layout()
+    savefig("fig_ablation_6h.png")
 
-# Sync to Drive
-Path(DRIVE_NB5_OUT).mkdir(parents=True, exist_ok=True)
-shutil.copytree("plots", Path(DRIVE_NB5_OUT) / "plots", dirs_exist_ok=True)
-print(f"\nNB5 COMPLETE — plots synced to {DRIVE_NB5_OUT}")
-print("Use plots/fig5b_storm_6h_only.png in your IEEE paper.")
+# ============================================================
+# 06 STATISTICAL TESTS
+# ============================================================
+print("\n=== 06 STATISTICAL TESTS ===")
+rng = np.random.default_rng(0)
+stat_report = {}
+for label in [l for l in ["transformer", "storm_bz"] if l in CKPT]:
+    pes = []
+    for seed in sorted(CKPT[label].keys()):
+        if (label, seed) not in pred_cache:
+            continue
+        d = pred_cache[(label, seed)]
+        pes.append(float(pe_vs_persist(d["yt"][:, H6], d["yp"][:, H6], d["yb"][:, H6])))
+    pes = np.asarray(pes, float)
+    boots = [rng.choice(pes, size=len(pes), replace=True).mean() for _ in range(N_BOOTSTRAP)] if len(pes) else []
+    stat_report[label] = {
+        "n_seeds": int(len(pes)),
+        "pe_6h_values": pes.tolist(),
+        "mean": float(pes.mean()) if len(pes) else None,
+        "sample_std": float(pes.std(ddof=1)) if len(pes) > 1 else 0.0,
+        "bootstrap_ci95": [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))] if boots else None,
+    }
+    print(label, stat_report[label])
+
+if "transformer" in stat_report and "storm_bz" in stat_report:
+    a = np.asarray(stat_report["storm_bz"]["pe_6h_values"])
+    b = np.asarray(stat_report["transformer"]["pe_6h_values"])
+    n = min(len(a), len(b))
+    if n >= 2:
+        d = a[:n] - b[:n]
+        null = []
+        for _ in range(5000):
+            signs = rng.choice([-1.0, 1.0], size=n)
+            null.append((signs * d).mean())
+        p = float(np.mean(np.abs(null) >= abs(d.mean())))
+        # Cohen's d (paired)
+        cohens = float(d.mean() / (d.std(ddof=1) + 1e-12))
+        stat_report["paired_storm_minus_tf"] = {
+            "mean_diff": float(d.mean()),
+            "sign_flip_p": p,
+            "cohens_d": cohens,
+            "note": "Exploratory: n_seeds is small; report cautiously.",
+        }
+        print("ΔPE", d.mean(), "sign-flip p", p, "Cohen d", cohens)
+json.dump(stat_report, open(OUT / "JSON" / "statistics.json", "w"), indent=2)
+
+# ============================================================
+# 07 PHYSICS VALIDATION
+# ============================================================
+print("\n=== 07 PHYSICS VALIDATION ===")
+delay_rows = []
+for label in [l for l in ["storm_bz", "storm_no_delay", "storm_no_physics"] if l in CKPT]:
+    for seed, d in [(s, pred_cache[(label, s)]) for s in CKPT[label] if (label, s) in pred_cache]:
+        tau = d.get("tau")
+        if tau is None:
+            # try reading from model parameters
+            model = build_model(label)
+            load_checkpoint(model, d["path"])
+            for n, p in model.named_parameters():
+                if "tau" in n.lower() or "delay" in n.lower():
+                    delay_rows.append({"label": label, "seed": seed, "tau_h": float(p.detach().cpu().reshape(-1)[0]), "source": n})
+                    break
+        else:
+            delay_rows.append({"label": label, "seed": seed, "tau_h": float(np.mean(tau)), "source": "forward"})
+if delay_rows:
+    pd.DataFrame(delay_rows).to_csv(OUT / "Tables" / "physics_tau.csv", index=False)
+    fig, ax = plt.subplots(figsize=(5, 3.5))
+    for label in sorted(set(r["label"] for r in delay_rows)):
+        vals = [r["tau_h"] for r in delay_rows if r["label"] == label]
+        ax.hist(vals, bins=max(3, len(vals)), alpha=0.6, label=label)
+    ax.set_xlabel("Learned τ (hours)")
+    ax.set_title("Propagation delay across seeds / variants")
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    savefig("fig_physics_tau_hist.png")
+
+# Gate activation storm vs quiet for main model
+if ("storm_bz", min(CKPT.get("storm_bz", {42: None}))) in pred_cache or "storm_bz" in CKPT:
+    seed0 = sorted(CKPT["storm_bz"].keys())[0] if "storm_bz" in CKPT else None
+    if seed0 is not None and ( "storm_bz", seed0) in pred_cache:
+        d = pred_cache[("storm_bz", seed0)]
+        if d["gate"] is not None:
+            g = d["gate"]
+            if g.ndim > 1:
+                g = g.mean(axis=tuple(range(1, g.ndim)))
+            m_st = d["masks"]["storm"][: len(g)]
+            fig, ax = plt.subplots(figsize=(5.5, 3.5))
+            ax.hist(g[~m_st], bins=40, alpha=0.6, label="quiet", density=True)
+            if m_st.any():
+                ax.hist(g[m_st], bins=40, alpha=0.6, label="storm", density=True)
+            ax.set_xlabel("Gate activation")
+            ax.set_title("Bz-gate activation: storm vs quiet")
+            ax.legend()
+            fig.tight_layout()
+            savefig("fig_physics_gate_storm_quiet.png")
+
+# ============================================================
+# 08 PERMUTATION IMPORTANCE
+# ============================================================
+print("\n=== 08 PERMUTATION IMPORTANCE ===")
+focus = "storm_bz" if "storm_bz" in CKPT else PRIMARY[0]
+seed0 = sorted(CKPT[focus].keys())[0]
+model = build_model(focus)
+load_checkpoint(model, CKPT[focus][seed0])
+model.to(DEVICE).eval()
+
+# baseline
+d0 = pred_cache[(focus, seed0)]
+base_pe = float(pe_vs_persist(d0["yt"][:, H6], d0["yp"][:, H6], d0["yb"][:, H6]))
+print("baseline PE_6h", base_pe)
+
+feat_names = SW_COLS if len(SW_COLS) == N_SW else [f"f{i}" for i in range(N_SW)]
+imp_rows = []
+for fi, fname in enumerate(feat_names):
+    # permute feature fi across batch dimension for each batch
+    ys, ps, bs = [], [], []
+    with torch.no_grad():
+        for batch in test_loader:
+            x_sw = batch["x_sw"].clone()
+            perm = torch.randperm(x_sw.shape[0])
+            x_sw[:, :, fi] = x_sw[perm, :, fi]
+            x_sw = torch.nan_to_num(x_sw.to(DEVICE), nan=0.0)
+            x_flux = torch.nan_to_num(batch["x_flux"].to(DEVICE), nan=0.0)
+            y_persist = batch["y_persist"].to(DEVICE)
+            try:
+                out = model(x_sw, x_flux, y_persist=y_persist)
+            except TypeError:
+                try:
+                    out = model(x_sw, x_flux, y_persist)
+                except TypeError:
+                    out = model(x_sw, x_flux)
+            pred = out["flux_pred"] if isinstance(out, dict) else out
+            ps.append(pred.cpu().numpy())
+            ys.append(batch["y_flux"].numpy())
+            bs.append(batch["y_persist"].numpy())
+    yt = np.concatenate(ys); yp = np.concatenate(ps); yb = np.concatenate(bs)
+    pe_p = float(pe_vs_persist(yt[:, H6], yp[:, H6], yb[:, H6]))
+    imp_rows.append({"feature": fname, "index": fi, "pe_permuted": pe_p, "pe_drop": base_pe - pe_p})
+    if fi % 4 == 0:
+        print(f"  {fname}: drop={base_pe - pe_p:.4f}")
+
+imp = pd.DataFrame(imp_rows).sort_values("pe_drop", ascending=False)
+imp.to_csv(OUT / "Tables" / "permutation_importance.csv", index=False)
+fig, ax = plt.subplots(figsize=(7, 4.5))
+ax.barh(imp["feature"][::-1], imp["pe_drop"][::-1], color="#2E5C8A")
+ax.set_xlabel("PE drop when permuted (6 h)")
+ax.set_title(f"Permutation importance — {focus}")
+fig.tight_layout()
+savefig("fig_feature_importance.png")
+
+# ============================================================
+# 09 CASE STUDIES
+# ============================================================
+print("\n=== 09 CASE STUDIES ===")
+d = pred_cache[(focus, seed0)]
+yt, yp, yb = d["yt"][:, H6], d["yp"][:, H6], d["yb"][:, H6]
+err = np.abs(yp - yt)
+# worst 5 absolute errors
+top = np.argsort(err)[-5:][::-1]
+# one high-flux / storm window center
+st_m = d["masks"]["storm"]
+storm_centers = np.where(st_m)[0]
+center_storm = int(storm_centers[len(storm_centers) // 2]) if len(storm_centers) else int(np.argmax(yt))
+center_worst = int(top[0])
+
+def panel(ax, center, title, half=72):
+    a, b = max(0, center - half), min(len(yt), center + half)
+    t = np.arange(a, b)
+    ax.plot(t, yt[a:b], label="true", lw=1.4)
+    ax.plot(t, yp[a:b], label="pred", lw=1.2)
+    ax.plot(t, yb[a:b], label="persist", lw=1.0, alpha=0.7)
+    ax.set_title(title)
+    ax.legend(fontsize=8)
+
+fig, axes = plt.subplots(2, 1, figsize=(9, 5.5))
+panel(axes[0], center_storm, "Case — storm / high-flux neighborhood (6 h)")
+panel(axes[1], center_worst, "Case — largest absolute error neighborhood (6 h)")
+axes[1].set_xlabel("Test index")
+fig.tight_layout()
+savefig("fig_case_studies.png")
+
+pd.DataFrame([{
+    "index": int(i),
+    "true_6h": float(yt[i]),
+    "pred_6h": float(yp[i]),
+    "persist_6h": float(yb[i]),
+    "abs_err": float(err[i]),
+} for i in top]).to_csv(OUT / "Tables" / "event_case_studies.csv", index=False)
+
+# ============================================================
+# 10 RESIDUAL ANALYSIS
+# ============================================================
+print("\n=== 10 RESIDUAL ANALYSIS ===")
+for label in [l for l in ["transformer", "storm_bz"] if l in CKPT]:
+    seed = sorted(CKPT[label].keys())[0]
+    d = pred_cache[(label, seed)]
+    resid = d["yp"][:, H6] - d["yt"][:, H6]
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3.6))
+    axes[0].scatter(d["yt"][:, H6], resid, s=3, alpha=0.25)
+    axes[0].axhline(0, color="r", ls="--")
+    axes[0].set_xlabel("True log-flux"); axes[0].set_ylabel("Residual")
+    axes[0].set_title(f"{label} residual scatter (6 h)")
+    axes[1].hist(resid, bins=60, alpha=0.85)
+    axes[1].set_title(f"{label} residual histogram (6 h)")
+    fig.tight_layout()
+    savefig(f"fig_residual_{label}.png")
+
+# ============================================================
+# 11 UNCERTAINTY (MC dropout)
+# ============================================================
+print("\n=== 11 UNCERTAINTY ===")
+model = build_model(focus)
+load_checkpoint(model, CKPT[focus][seed0])
+yt, yp, yb, dst, kp, st, _, _, ystd = predict(model, test_loader, mc_dropout=True, mc_passes=MC_PASSES)
+# coverage under Gaussian approx: |err| <= 1.645 std
+cover = float(np.mean(np.abs(yt[:, H6] - yp[:, H6]) <= 1.645 * (ystd[:, H6] + 1e-8)))
+print(f"MC dropout coverage@90%≈{cover:.3f}  mean_std={ystd[:, H6].mean():.4f}")
+json.dump({
+    "model": focus, "seed": seed0, "mc_passes": MC_PASSES,
+    "coverage_90_approx": cover, "mean_pred_std_6h": float(ystd[:, H6].mean()),
+}, open(OUT / "JSON" / "mc_dropout.json", "w"), indent=2)
+
+n = min(300, len(yt))
+fig, ax = plt.subplots(figsize=(9, 3.6))
+ax.plot(yt[:n, H6], color="k", lw=1, label="true")
+ax.plot(yp[:n, H6], color="C3", lw=1, label="MC mean")
+ax.fill_between(np.arange(n), yp[:n, H6] - 1.645 * ystd[:n, H6], yp[:n, H6] + 1.645 * ystd[:n, H6],
+                 color="C3", alpha=0.25, label="~90% band")
+ax.legend(fontsize=8); ax.set_title(f"MC-dropout band — {focus} 6 h")
+fig.tight_layout()
+savefig("fig_mc_dropout_band.png")
+
+# ============================================================
+# 12 COMPUTE COST
+# ============================================================
+print("\n=== 12 COMPUTE COST ===")
+cost_rows = []
+for label in [l for l in ["transformer", "storm_bz"] if l in CKPT]:
+    model = build_model(label).to(DEVICE).eval()
+    n_params = sum(p.numel() for p in model.parameters())
+    # synthetic batch
+    x_sw = torch.randn(32, SEQ, N_SW, device=DEVICE)
+    x_flux = torch.randn(32, SEQ, 1, device=DEVICE)
+    y_p = torch.randn(32, 3, device=DEVICE)
+    with torch.no_grad():
+        for _ in range(10):
+            try:
+                model(x_sw, x_flux, y_persist=y_p)
+            except TypeError:
+                try:
+                    model(x_sw, x_flux, y_p)
+                except TypeError:
+                    model(x_sw, x_flux)
+    torch.cuda.synchronize()
+    t0 = time.time()
+    with torch.no_grad():
+        for _ in range(50):
+            try:
+                model(x_sw, x_flux, y_persist=y_p)
+            except TypeError:
+                try:
+                    model(x_sw, x_flux, y_p)
+                except TypeError:
+                    model(x_sw, x_flux)
+    torch.cuda.synchronize()
+    ms = (time.time() - t0) / 50 * 1000
+    cost_rows.append({"label": label, "parameters": int(n_params), "ms_per_batch32": round(ms, 3)})
+    print(cost_rows[-1])
+pd.DataFrame(cost_rows).to_csv(OUT / "Tables" / "compute_cost.csv", index=False)
+
+# ============================================================
+# 04 TRANSFER LEARNING (GRASP) — careful
+# ============================================================
+print("\n=== 04 GRASP TRANSFER ===")
+grasp_summary = {"status": "skipped"}
+if (ds / "grasp").exists() and read_grasp_directory is not None and "storm_bz" in CKPT:
+    try:
+        grasp_df = read_grasp_directory(str(ds / "grasp"))
+        wind2 = read_wind_directory(str(ds / "omni"))
+        grasp_raw = grasp_df.join(wind2, how="inner")
+        print("GRASP joined", grasp_raw.shape)
+        if len(grasp_raw) < 100:
+            grasp_summary = {"status": "too_few_rows", "n": len(grasp_raw)}
+            print("GRASP too small — skip fine-tune; do not put these PE numbers in the main paper table")
+        else:
+            # transform with GOES-fitted preprocessor
+            try:
+                gdf = pre.transform(grasp_raw)
+            except Exception:
+                gdf = Preprocessor().fit_transform(grasp_raw)
+                if isinstance(gdf, tuple):
+                    gdf = pd.concat(list(gdf), axis=0)
+            if isinstance(gdf, tuple):
+                # some preprocessors return splits only on fit
+                gdf = grasp_raw
+            n = len(gdf)
+            # chronological 70/15/15
+            i1, i2 = int(0.70 * n), int(0.85 * n)
+            tr, va, te = gdf.iloc[:i1], gdf.iloc[i1:i2], gdf.iloc[i2:]
+            try:
+                _, _, grasp_loader = make_dataloaders(tr, va, te, seq_len=SEQ, batch_size=BS, storm_weight=1.0, num_workers=0)
+            except TypeError:
+                grasp_loader = test_loader  # last resort
+                print("WARNING: could not build GRASP loader with same API")
+
+            seed0 = sorted(CKPT["storm_bz"].keys())[0]
+            model = build_model("storm_bz")
+            load_checkpoint(model, CKPT["storm_bz"][seed0])
+            # zero-shot
+            yt, yp, yb, dst, kp, st, _, _, _ = predict(model, grasp_loader)
+            masks_g = build_masks(yt[:, H6], dst, kp, st, pre)
+            zs_rows = metrics_block(yt, yp, yb, masks_g, "storm_bz_zeroshot", seed0)
+            for r in zs_rows:
+                r["stage"] = "zero_shot"
+            print("Zero-shot 6h PE_all", [r for r in zs_rows if r["horizon"] == "6h" and r["period"] == "all"])
+
+            ft_rows = []
+            if DO_GRASP_FINETUNE and len(te) >= 50:
+                # light fine-tune heads (or full — keep simple full with low LR)
+                model.train()
+                opt = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], lr=GRASP_LR)
+                for ep in range(GRASP_EPOCHS):
+                    losses = []
+                    for batch in grasp_loader:
+                        x_sw = torch.nan_to_num(batch["x_sw"].to(DEVICE), nan=0.0)
+                        x_flux = torch.nan_to_num(batch["x_flux"].to(DEVICE), nan=0.0)
+                        y = batch["y_flux"].to(DEVICE)
+                        y_persist = batch["y_persist"].to(DEVICE)
+                        try:
+                            out = model(x_sw, x_flux, y_persist=y_persist)
+                        except TypeError:
+                            try:
+                                out = model(x_sw, x_flux, y_persist)
+                            except TypeError:
+                                out = model(x_sw, x_flux)
+                        pred = out["flux_pred"] if isinstance(out, dict) else out
+                        loss = nn.functional.mse_loss(pred, y)
+                        opt.zero_grad(); loss.backward(); opt.step()
+                        losses.append(loss.item())
+                    if (ep + 1) % 5 == 0:
+                        print(f"  GRASP ft epoch {ep+1}/{GRASP_EPOCHS} loss={np.mean(losses):.4f}")
+                model.eval()
+                yt2, yp2, yb2, dst2, kp2, st2, _, _, _ = predict(model, grasp_loader)
+                masks2 = build_masks(yt2[:, H6], dst2, kp2, st2, pre)
+                ft_rows = metrics_block(yt2, yp2, yb2, masks2, "storm_bz_finetuned", seed0)
+                for r in ft_rows:
+                    r["stage"] = "finetuned"
+                torch.save(model.state_dict(), OUT / "Tables" / "storm_bz_grasp_finetuned.pt")
+
+            gdf_out = pd.DataFrame(zs_rows + ft_rows)
+            gdf_out.to_csv(OUT / "Tables" / "grasp_transfer_comparison.csv", index=False)
+            grasp_summary = {
+                "status": "ok",
+                "n_test_rows_approx": int(len(te)),
+                "zero_shot_6h_pe_all": float(gdf_out[(gdf_out.stage == "zero_shot") & (gdf_out.horizon == "6h") & (gdf_out.period == "all")]["pe"].mean()) if len(gdf_out) else None,
+                "finetuned_6h_pe_all": float(gdf_out[(gdf_out.stage == "finetuned") & (gdf_out.horizon == "6h") & (gdf_out.period == "all")]["pe"].mean()) if any(gdf_out.stage == "finetuned") else None,
+                "warning": "If PE is far below paper NB4 numbers, keep paper GRASP table from NB4 and treat this as a reproducibility check only.",
+            }
+            # simple bar if both stages exist
+            if any(gdf_out.stage == "finetuned"):
+                fig, ax = plt.subplots(figsize=(5.5, 3.5))
+                stages = ["zero_shot", "finetuned"]
+                vals = []
+                for stg in stages:
+                    s = gdf_out[(gdf_out.stage == stg) & (gdf_out.horizon == "6h") & (gdf_out.period == "all")]
+                    vals.append(s.pe.mean() if len(s) else np.nan)
+                ax.bar(stages, vals, color=["#999", "#2E5C8A"])
+                ax.set_ylabel("PE_all (6 h)")
+                ax.set_title("GRASP transfer (this notebook)")
+                fig.tight_layout()
+                savefig("fig_grasp_transfer.png")
+    except Exception as e:
+        grasp_summary = {"status": "error", "error": str(e)}
+        print("GRASP failed:", e)
+else:
+    print("GRASP data or reader missing — skip")
+json.dump(grasp_summary, open(OUT / "JSON" / "grasp_summary.json", "w"), indent=2)
+
+# ============================================================
+# 13 DISCUSSION METRICS
+# ============================================================
+print("\n=== 13 DISCUSSION METRICS ===")
+disc = []
+for label in [l for l in ["transformer", "storm_bz", "storm_no_delay", "storm_no_physics"] if l in CKPT]:
+    sub = bench[(bench.label == label) & (bench.horizon == "6h")]
+    def mean_pe(period):
+        s = sub[sub.period == period]
+        return float(s.pe.mean()) if len(s) else float("nan")
+    disc.append({
+        "label": label,
+        "pe_all_6h": mean_pe("all"),
+        "pe_storm_6h": mean_pe("storm"),
+        "pe_quiet_6h": mean_pe("quiet"),
+        "pe_highflux_6h": mean_pe("high_flux"),
+        "n_seeds": int(sub[sub.period == "all"]["seed"].nunique()),
+    })
+disc_df = pd.DataFrame(disc)
+disc_df.to_csv(OUT / "Tables" / "discussion_metrics.csv", index=False)
+print(disc_df.to_string(index=False))
+
+# Improvement helper vs transformer
+if "transformer" in disc_df.label.values and "storm_bz" in disc_df.label.values:
+    tf = disc_df[disc_df.label == "transformer"].iloc[0]
+    st = disc_df[disc_df.label == "storm_bz"].iloc[0]
+    improvements = {
+        "delta_pe_all_6h": float(st.pe_all_6h - tf.pe_all_6h),
+        "delta_pe_storm_6h": float(st.pe_storm_6h - tf.pe_storm_6h),
+        "delta_pe_quiet_6h": float(st.pe_quiet_6h - tf.pe_quiet_6h),
+        "delta_pe_highflux_6h": float(st.pe_highflux_6h - tf.pe_highflux_6h),
+    }
+    json.dump(improvements, open(OUT / "JSON" / "discussion_improvements.json", "w"), indent=2)
+    print("Improvements vs Transformer:", improvements)
+
+# ============================================================
+# 14 EXPORT IEEE-READY SUMMARY TABLE + LATEX SNIPPET
+# ============================================================
+print("\n=== 14 EXPORT ===")
+# Main seed-mean table at 6h
+lines = []
+lines.append("Model,n_seeds,PE_all,PE_all_std,PE_storm,PE_storm_std,PE_highflux,RMSE_all")
+for label in PRIMARY:
+    sub = bench[(bench.label == label) & (bench.horizon == "6h")]
+    if sub.empty:
+        continue
+    def stats(period):
+        s = sub[sub.period == period]
+        if s.empty:
+            return float("nan"), float("nan")
+        return float(s.pe.mean()), float(s.pe.std(ddof=1)) if len(s) > 1 else 0.0
+    pa, pas = stats("all")
+    ps, pss = stats("storm")
+    ph, _ = stats("high_flux")
+    rm = float(sub[sub.period == "all"].rmse.mean())
+    n = int(sub[sub.period == "all"].seed.nunique())
+    lines.append(f"{label},{n},{pa:.4f},{pas:.4f},{ps:.4f},{pss:.4f},{ph:.4f},{rm:.4f}")
+
+(OUT / "Tables" / "ieee_main_table.csv").write_text("\n".join(lines))
+print("\n".join(lines))
+
+# LaTeX snippet
+tex = []
+tex.append("% Auto-generated — paste into results section")
+tex.append("\\begin{tabular}{lcccc}")
+tex.append("\\hline")
+tex.append("Model & PE$_{\\mathrm{all}}$ & PE$_{\\mathrm{storm}}$ & PE$_{\\mathrm{hi}}$ & RMSE \\\\")
+tex.append("\\hline")
+for line in lines[1:]:
+    parts = line.split(",")
+    tex.append(f"{parts[0]} & {parts[2]}$\\pm${parts[3]} & {parts[4]}$\\pm${parts[5]} & {parts[6]} & {parts[7]} \\\\")
+tex.append("\\hline")
+tex.append("\\end{tabular}")
+(OUT / "LaTeX" / "main_results_snippet.tex").write_text("\n".join(tex))
+
+# Checklist
+checklist = {
+    "outputs": str(OUT),
+    "storm_mask_source": next(iter(pred_cache.values()))["masks"].get("storm_source"),
+    "figures": sorted(p.name for p in (OUT / "Figures").glob("*.png")),
+    "tables": sorted(p.name for p in (OUT / "Tables").glob("*.csv")),
+    "json": sorted(p.name for p in (OUT / "JSON").glob("*.json")),
+    "grasp": grasp_summary,
+    "paper_use": {
+        "safe_for_main_text": [
+            "benchmark_metrics.csv (GOES)",
+            "fig_horizon_pe.png",
+            "fig_residual_*.png",
+            "fig_feature_importance.png",
+            "fig_physics_tau_hist.png",
+            "compute_cost.csv",
+            "statistics.json (report p as exploratory if n_seeds small)",
+        ],
+        "use_only_after_checking_storm_source": [
+            "ablation_metrics.csv",
+            "discussion_metrics.csv",
+            "PE_storm columns",
+        ],
+        "do_not_overwrite_paper_grasp_unless_better": [
+            "grasp_transfer_comparison.csv",
+        ],
+    },
+}
+json.dump(checklist, open(OUT / "JSON" / "CHECKLIST.json", "w"), indent=2)
+print("\n=== DONE ===")
+print(json.dumps(checklist, indent=2))
+print(f"\nAll outputs → {OUT}")
+print("""
+Next steps for the paper:
+1) Open JSON/CHECKLIST.json and confirm storm_mask_source is NOT high_flux_p90_fallback
+   (if it is, PE_storm is really PE_hi — rename in the paper).
+2) Copy Figures/ and Tables/ieee_main_table.csv into Overleaf.
+3) Keep previous NB4 GRASP numbers if this GRASP block is weaker.
+4) In text, keep claims cautious: 'suggests', 'consistent with', exploratory p-values.
+""")

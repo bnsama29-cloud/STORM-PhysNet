@@ -1,0 +1,10 @@
+label,seed,tau_h,source
+storm_bz,42,1.4983747005462646,forward
+storm_bz,43,1.4921973943710327,forward
+storm_bz,44,1.498632788658142,forward
+storm_no_delay,42,1.0,forward
+storm_no_delay,43,1.0,forward
+storm_no_delay,44,1.0,forward
+storm_no_physics,42,1.4938849210739136,forward
+storm_no_physics,43,1.49356210231781,forward
+storm_no_physics,44,1.4897907972335815,forward

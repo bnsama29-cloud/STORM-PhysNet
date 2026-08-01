@@ -1,15 +1,14 @@
 # 🚀 STORM-PhysNet
 **Physics-Informed Multi-Horizon Forecasting of Geostationary Relativistic Electron Flux**
 
-STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux ($E > 2$ MeV) at Geostationary Earth Orbit (GEO). It couples a standard Transformer encoder with physics-informed modules to accurately model flux enhancements driven by geomagnetic storms, avoiding the catastrophic instabilities seen in standard black-box models at short operational horizons.
+STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux ( > 2$ MeV) at Geostationary Earth Orbit (GEO). It couples a standard Transformer encoder with physics-informed modules to accurately model flux enhancements driven by geomagnetic storms, avoiding the catastrophic instabilities seen in standard black-box models at short operational horizons.
 
 ---
 
 ## 🛰️ Architecture
 The model processes 72 hours of upstream solar wind and geomagnetic indices to simultaneously predict electron flux at **45-min, 6-h, and 12-h horizons**.
 
-```
-Solar Wind (OMNI/GOES, 16 features, 72 h window)
+\Solar Wind (OMNI/GOES, 16 features, 72 h window)
         │
         ▼
 ┌─────────────────────────────┐
@@ -27,27 +26,63 @@ Solar Wind (OMNI/GOES, 16 features, 72 h window)
     ┌──────────▼───────────┐
     │ Multi-Horizon Heads  │  ← Shared latent space for 45-m, 6-h, 12-h output
     └──────────────────────┘
-```
-
+\
 ---
 
-## 📊 Verified Results & Achievements
-Evaluated across 5 years of GOES data using chronological splits and rigorous 3-seed reproducibility.
+## 📊 Interpretations & Results
+All figures and tables generated during the rigorous multi-seed evaluation process on the 5-year GOES dataset can be found in the \interpretations/\ directory.
 
-1. **Short-Horizon Reliability:** At the critical 45-minute horizon, standard Transformers are unstable across seeds ($PE$ range: $-0.456$ to $+0.002$). STORM-PhysNet remains highly stable at **PE = $0.34 \pm 0.05$**.
-2. **Storm-Time Accuracy:** At 6 hours, STORM-BzGate achieves a storm-time PE of **0.674** (vs 0.612 for Vanilla Transformer).
-3. **Ablations:** Removing the Adaptive Delay costs **3.0** storm PE points; removing the Physics Gate costs **2.3** storm PE points.
-4. **Cross-Satellite Transfer:** Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only ~73K parameters recovers robust skill ($PE_{6h} = 0.564$), demonstrating high practical value for newly commissioned missions.
+### 1. Multi-Horizon Reliability
+At the critical 45-minute horizon, standard Transformers are highly unstable across random seeds. STORM-PhysNet remains strictly reliable and outperforms baselines across all horizons.
+
+![Multi-Horizon PE](interpretations/Figures/fig_horizon_pe.png)
+
+### 2. Ablation & Physics Constraints
+Removing the Adaptive Delay costs 3.0 storm PE points; removing the Physics Gate costs 2.3 storm PE points.
+
+![Ablation Results](interpretations/Figures/fig_ablation_6h.png)
+
+The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around ~1.0 hours:
+
+![Propagation Delay Histogram](interpretations/Figures/fig_physics_tau_hist.png)
+
+The physics gate strictly activates during geomagnetic storm periods (Bz < 0 conditions), acting as an attention amplifier exactly when it matters most:
+
+![Gate Activation](interpretations/Figures/fig_physics_gate_storm_quiet.png)
+
+### 3. Feature Importance & Event Case Studies
+A massive permutation importance analysis (over 7,800 random feature shuffles) quantitatively confirms the model fundamentally relies on key solar wind drivers (like Bz and Flow Speed) over autoregressive persistence.
+
+![Permutation Feature Importance](interpretations/Figures/fig_feature_importance.png)
+
+During intense geomagnetic activity, the model tracks rapid flux enhancements successfully while maintaining tight bounds during quiet periods.
+
+![Event Case Studies](interpretations/Figures/fig_case_studies.png)
+
+### 4. Cross-Satellite Transfer (GRASP)
+Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only ~73K parameters recovers robust skill ({6h} = 0.564$), demonstrating high practical value for newly commissioned space weather missions with scarce data.
+
+![GRASP Transfer Learning](interpretations/Figures/fig_grasp_transfer.png)
+
+### 5. Uncertainty & Residual Diagnostics
+Monte-Carlo dropout provides highly reliable 95% uncertainty bounds during varying solar wind conditions.
+
+![MC Dropout Uncertainty](interpretations/Figures/fig_mc_dropout_band.png)
+
+Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zero-centered and Gaussian error distribution compared to the standard Transformer baseline.
+
+![Residual Diagnostics](interpretations/Figures/fig_residual_storm_bz.png)
 
 ---
 
 ## 📁 Repository Structure
-* `src/model/` - PyTorch model architecture (Transformer backbone, Delay module, Physics gate).
-* `src/data/` - Data loading and preprocessing pipelines.
-* `src/training/` - Model training loops and multi-seed logic.
-* `src/evaluation/` - Metrics calculation (PE, RMSE) and evaluation scripts.
-* `dashboard/` - Interactive Streamlit web app for live forecasting.
-* `notebooks/` - Training and evaluation entry points (`01_train_main.py`, `02_train_optional.py`, `03_eval_all.py`).
+* \src/model/\ - PyTorch model architecture (Transformer backbone, Delay module, Physics gate).
+* \src/data/\ - Data loading and preprocessing pipelines.
+* \src/training/\ - Model training loops and multi-seed logic.
+* \src/evaluation/\ - Metrics calculation (PE, RMSE) and evaluation scripts.
+* \interpretations/\ - Complete IEEE final output metrics, JSON statistics, and PNG figures.
+* \colab_full_train.py\ - The unified master pipeline script.
+* \dashboard/\ - Interactive Streamlit web app for live forecasting.
 
 *(Note: Latex paper drafts, compiled PDFs, and raw dataset files are excluded from this repository).*
 
@@ -55,31 +90,20 @@ Evaluated across 5 years of GOES data using chronological splits and rigorous 3-
 
 ## 🚀 Quick Start
 ### 1. Install Dependencies
-```bash
+\\ash
 pip install -r requirements.txt
-```
+\
+### 2. Google Colab Unified Pipeline
+To effortlessly train all configurations, extract checkpoints, compute metrics, and generate the full suite of interpretation figures on a T4 GPU, use the master Colab pipeline:
+\\ash
+python colab_full_train.py
+\*Ensure your \datasets.zip\ (GOES + OMNI + GRASP) is available as specified in the script.*
 
-### 2. Prepare Data
-Download the raw GOES and OMNI datasets and place them in the `datasets/` directory. The pipeline expects hourly mean/std resampled CDF files.
-
-### 3. Train Models
-Run the multi-seed training pipeline:
-```bash
-python notebooks/01_train_main.py
-```
-
-### 4. Evaluate & Plot
-Generate metrics and figures from the paper:
-```bash
-python notebooks/03_eval_all.py
-```
-
-### 5. Run the Interactive Dashboard
-Launch the Streamlit app for real-time visualization:
-```bash
+### 3. Run the Interactive Dashboard
+Launch the Streamlit app for real-time visualization of the trained models:
+\\ash
 streamlit run dashboard/app.py
-```
-
+\
 ---
 **Author:** Samarth BN (RV College of Engineering)  
 **Acknowledgment:** The authors thank the providers of GOES, OMNI, and GRASP data products.
