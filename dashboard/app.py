@@ -217,9 +217,9 @@ st.markdown("""
     <div style="color:#718096; font-size:1rem; margin-top:6px; font-weight:400;">
         Storm-aware Physics-Informed Network for GEO Electron Flux Forecasting
     </div>
-    <div style="color:#4a5568; font-size:0.8rem; margin-top:4px;">
-        GOES >2 MeV | Wind Solar Wind | GRASP/GSAT-12R Indian Longitude
-    </div>
+    <div style="text-align:center; color:#718096; margin-top:-10px; margin-bottom:20px;">
+    GOES >2 MeV | Wind Solar Wind | GRASP/GSAT-19 Indian Longitude
+</div>
 </div>
 """, unsafe_allow_html=True)
 

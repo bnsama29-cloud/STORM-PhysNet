@@ -34,7 +34,9 @@ Finally, the physics-gated representation **h**<sub>gated</sub> is fed into para
 ```text
 STORM-PhysNet/
 │
-├── colab_full_train.py             # 🚀 Master pipeline script for complete training, validation, GRASP fine-tuning, and metric extraction
+├── 01_train_main.py                # 🚀 Master pipeline script for multi-seed core models
+├── 02_train_ablations_baselines.py # Training script for ablation studies and classical baselines
+├── 03_ieee_eval.py                 # IEEE evaluation script to collect checkpoints and compute final tables
 ├── run_training.py                 # Local entry point for model training sweeps
 │
 ├── src/                            # Core source code
@@ -163,9 +165,11 @@ pip install -r requirements.txt
 
 ### 2. Reproducibility & Evaluation Pipeline
 To strictly reproduce the paper's multi-seed evaluation, ensure your data is located in the standard paths (`data/goes/`, `data/omni/`) and run the evaluation scripts across the three reported seeds `{42, 43, 44}`. 
-Alternatively, use the master Colab pipeline to effortlessly train all configurations, extract checkpoints, compute metrics, and generate the full suite of interpretation figures on a T4 GPU:
+Alternatively, you can run the clean split Colab scripts in sequential order on a T4 GPU (run one script per session to avoid memory issues):
 ```bash
-python colab_full_train.py
+python 01_train_main.py
+python 02_train_ablations_baselines.py
+python 03_ieee_eval.py
 ```
 
 ### 3. Run the Interactive Dashboard
