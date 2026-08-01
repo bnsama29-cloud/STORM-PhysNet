@@ -13,26 +13,7 @@ STORM-PhysNet is a domain-aware deep learning framework for forecasting high-ene
 
 The model processes 72 hours of upstream solar wind and geomagnetic indices to simultaneously predict electron flux at **45-min, 6-h, and 12-h horizons**.
 
-```text
-Solar Wind (OMNI/GOES, 16 features, 72 h window)
-        │
-        ▼
-┌─────────────────────────────┐
-│  Adaptive Propagation Delay │  ← Learns L1-to-Earth transit time (~1.09 h)
-└──────────────┬──────────────┘
-               │
-      ┌────────▼─────────┐
-      │ Temporal Encoder │  ← Standard Transformer self-attention backbone
-      └────────┬─────────┘
-               │
-       ┌───────▼────────┐
-       │ Bz Physics Gate│  ← Selectively amplifies features during southward IMF
-       └───────┬────────┘
-               │
-    ┌──────────▼───────────┐
-    │ Multi-Horizon Heads  │  ← Shared latent space for 45-m, 6-h, 12-h output
-    └──────────────────────┘
-```
+![System Architecture Overview](interpretations/Figures/architecture.png)
 
 ---
 
