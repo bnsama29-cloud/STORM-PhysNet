@@ -486,7 +486,7 @@ def main():
         (output_dir / 'JSON' / 'benchmark_metrics.json').write_text(results_df.to_json(orient='records', indent=2))
         print('Saved benchmark_metrics.csv')
 
-    primary_labels = ['transformer', 'storm_bz']
+    primary_labels = ['transformer', 'storm_physnet']
     for label in primary_labels:
         if label not in checkpoint_map:
             print('Skipping missing label:', label)
@@ -531,9 +531,9 @@ def main():
                     storm_weight=1.0,
                     num_workers=0,
                 )
-                if 'storm_bz' in checkpoint_map:
-                    ckpt_path = checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])]
-                    goes_model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
+                if 'storm_physnet' in checkpoint_map:
+                    ckpt_path = checkpoint_map['storm_physnet'][min(checkpoint_map['storm_physnet'])]
+                    goes_model = build_model('storm_physnet', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
                     load_checkpoint(goes_model, ckpt_path, device)
                     y_true, y_pred, y_persist, y_dst, y_kp, _, _ = predict_model(goes_model, grasp_loader, device)
                     before_df = eval_metrics(y_true, y_pred, y_persist, kp=y_kp, dst=y_dst)
@@ -559,7 +559,7 @@ def main():
     else:
         print('GRASP data not present; skipping transfer learning analysis.')
 
-    ablation_labels = ['storm_bz', 'storm_bz_no_delay', 'storm_bz_no_physics']
+    ablation_labels = ['storm_physnet', 'storm_bz_no_delay', 'storm_bz_no_physics']
     ablation_results = []
     for label in ablation_labels:
         if label not in checkpoint_map:
@@ -578,7 +578,7 @@ def main():
         print('Saved ablation_metrics.csv')
 
     seed_summary = []
-    for label in ['transformer', 'storm_bz']:
+    for label in ['transformer', 'storm_physnet']:
         if label not in checkpoint_map:
             continue
         all_dfs = []
@@ -598,7 +598,7 @@ def main():
         pd.concat(seed_summary, ignore_index=True).to_csv(output_dir / 'Tables' / 'seed_significance_summary.csv', index=False)
         print('Saved seed_significance_summary.csv')
 
-    phys_labels = [l for l in ['storm_bz', 'storm_bz_no_delay', 'storm_bz_no_physics'] if l in checkpoint_map]
+    phys_labels = [l for l in ['storm_physnet', 'storm_bz_no_delay', 'storm_bz_no_physics'] if l in checkpoint_map]
     for label in phys_labels:
         ckpt_path = checkpoint_map[label][min(checkpoint_map[label])]
         model = build_model(label, n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
@@ -625,16 +625,16 @@ def main():
             plt.close()
             print('Saved tau distribution:', path)
 
-    if 'storm_bz' in checkpoint_map:
-        model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
-        load_checkpoint(model, checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])], device)
+    if 'storm_physnet' in checkpoint_map:
+        model = build_model('storm_physnet', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
+        load_checkpoint(model, checkpoint_map['storm_physnet'][min(checkpoint_map['storm_physnet'])], device)
         imp_df = permutation_importance(model, test_loader, device, feature_count=test_loader.dataset.n_sw_features, horizon_index=1, n_repeats=2)
         imp_df.to_csv(output_dir / 'Tables' / 'storm_bz_permutation_importance.csv', index=False)
         print('Saved permutation importance')
 
-    if 'storm_bz' in checkpoint_map:
-        model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
-        load_checkpoint(model, checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])], device)
+    if 'storm_physnet' in checkpoint_map:
+        model = build_model('storm_physnet', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
+        load_checkpoint(model, checkpoint_map['storm_physnet'][min(checkpoint_map['storm_physnet'])], device)
         y_true, y_pred, y_persist, y_dst, y_kp, _, _ = predict_model(model, test_loader, device)
         residuals = np.abs(y_pred[:, 1] - y_true[:, 1])
         top_idxs = np.argsort(residuals)[-5:][::-1]
@@ -652,7 +652,7 @@ def main():
         pd.DataFrame(case_rows).to_csv(output_dir / 'Tables' / 'event_case_studies.csv', index=False)
         print('Saved event case studies')
 
-    for label in ['storm_bz', 'transformer']:
+    for label in ['storm_physnet', 'transformer']:
         if label not in checkpoint_map:
             continue
         model = build_model(label, n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
@@ -663,17 +663,17 @@ def main():
         plot_histogram(residuals, output_dir / 'Figures' / f'{label}_residual_hist_6h.png', title=f'{label} 6h residuals')
         print('Saved residual diagnostics for', label)
 
-    if 'storm_bz' in checkpoint_map:
-        model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
-        load_checkpoint(model, checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])], device)
+    if 'storm_physnet' in checkpoint_map:
+        model = build_model('storm_physnet', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
+        load_checkpoint(model, checkpoint_map['storm_physnet'][min(checkpoint_map['storm_physnet'])], device)
         y_true, mean_pred, std_pred, _, _, _ = predict_model_mc_dropout(model, test_loader, device, mc_passes=10)
         unc_df = pd.DataFrame({'mean_pred_6h': mean_pred[:, 1], 'std_pred_6h': std_pred[:, 1]})
         unc_df.to_csv(output_dir / 'Tables' / 'storm_bz_mc_dropout_uncertainty.csv', index=False)
         print('Saved MC dropout uncertainty results')
 
-    if 'storm_bz' in checkpoint_map:
-        model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
-        load_checkpoint(model, checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])], device)
+    if 'storm_physnet' in checkpoint_map:
+        model = build_model('storm_physnet', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
+        load_checkpoint(model, checkpoint_map['storm_physnet'][min(checkpoint_map['storm_physnet'])], device)
         model.to(device)
         model.eval()
         start = time.time()
@@ -685,12 +685,12 @@ def main():
                 _ = model(x_sw, x_flux, y_persist=y_persist)
         elapsed = time.time() - start
         n_samples = len(test_loader.dataset)
-        cost_df = pd.DataFrame([{'model': 'storm_bz', 'n_samples': int(n_samples), 'elapsed_sec': float(elapsed), 'sec_per_sample': float(elapsed / max(n_samples, 1))}])
+        cost_df = pd.DataFrame([{'model': 'storm_physnet', 'n_samples': int(n_samples), 'elapsed_sec': float(elapsed), 'sec_per_sample': float(elapsed / max(n_samples, 1))}])
         cost_df.to_csv(output_dir / 'Tables' / 'compute_cost.csv', index=False)
         print('Saved compute cost')
 
     robust_rows = []
-    for label in ['storm_bz', 'transformer']:
+    for label in ['storm_physnet', 'transformer']:
         if label not in checkpoint_map:
             continue
         model = build_model(label, n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
@@ -712,8 +712,8 @@ def main():
         print('Saved robustness summary')
 
     discussion_rows = []
-    if 'transformer' in checkpoint_map and 'storm_bz' in checkpoint_map:
-        for label in ['transformer', 'storm_bz']:
+    if 'transformer' in checkpoint_map and 'storm_physnet' in checkpoint_map:
+        for label in ['transformer', 'storm_physnet']:
             ckpt_path = checkpoint_map[label][min(checkpoint_map[label])]
             model = build_model(label, n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
             load_checkpoint(model, ckpt_path, device)
