@@ -11,9 +11,21 @@ STORM-PhysNet is a domain-aware deep learning framework for forecasting high-ene
 
 ## 🛰️ Architecture Overview
 
-The model processes 72 hours of upstream solar wind and geomagnetic indices to simultaneously predict electron flux at **45-min, 6-h, and 12-h horizons**.
+The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let $\mathbf{X}_{sw} \in \mathbb{R}^{T \times 14}$ represent the multivariate solar wind input sequence and $\mathbf{X}_{flux} \in \mathbb{R}^{T \times 1}$ represent the local electron flux persistence, where $T=72$ hours is the lookback window.
 
-![System Architecture Overview](interpretations/Figures/architecture.png)
+![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
+
+### Adaptive Propagation Delay
+Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. This module dynamically learns the solar wind transit time $\tau = f_{\theta}(\mathbf{X}_{sw}) \in [0.5, 1.5]$ hours. The input features are continuously shifted in the temporal domain such that $\mathbf{X}_{sw}^{\prime}(t) = \mathbf{X}_{sw}(t - \tau)$, perfectly aligning the upstream drivers with the target geostationary response.
+
+### Temporal Encoding
+The aligned solar wind features and the raw electron flux are concatenated and linearly projected into a high-dimensional hidden space. Positional encodings $\mathbf{P}_{pos}$ are added, yielding the initial token sequence $\mathbf{Z}^{(0)} = [\mathbf{X}_{sw}^{\prime} \| \mathbf{X}_{flux}]\mathbf{W}_{in} + \mathbf{P}_{pos}$. A Multi-Head Attention (MHA) Transformer backbone extracts temporal dependencies across the 72-hour window, outputting the final fused hidden representation $\mathbf{h}$.
+
+### $B_z$ Physics Gate (Storm Trigger)
+During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF $B_z < 0$), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the $B_z$ Physics Gate. A gating scalar $\sigma = \text{Sigmoid}(\mathbf{W}_g \mathbf{h} + b_g)$ is computed from the hidden representation. However, this gate is strictly controlled by the raw $B_z$ input feature. If $B_z < 0$, the hidden state is amplified ($\mathbf{h}_{gated} = \sigma \odot \mathbf{h}$); otherwise, the representation passes unchanged ($\mathbf{h}_{gated} = \mathbf{h}$). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
+
+### Multi-Horizon Forecasting Heads
+Finally, the physics-gated representation $\mathbf{h}_{gated}$ is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux $\hat{Y}$ and aleatoric uncertainty variance $s^2$ at the critical 45-minute (short-term), 6-hour (operational), and 12-hour (long-term) horizons simultaneously.
 
 ---
 
