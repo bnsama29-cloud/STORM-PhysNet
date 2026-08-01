@@ -375,7 +375,7 @@ with tab2:
                           subplot_titles=("Solar Wind Speed (km/s)",
                                           "IMF Bz (nT)",
                                           "Proton Density (cm⁻³)"),
-                          shared_xaxes=True, vertical_spacing=0.08)
+                          shared_xaxes=True, vertical_spacing=0.15)
 
     fig2.add_trace(go.Scatter(x=t, y=vsw_ts,
                                line=dict(color="#ff7f0e", width=3),
@@ -392,7 +392,12 @@ with tab2:
     fig2.add_hline(y=-5, row=2, line_dash="dash",
                     line_color="#d62728", line_width=2,
                     annotation_text="Gate threshold", annotation_font_color="#d62728")
-    fig2.update_layout(**PLOT_THEME, height=500,
+    
+    # Copy PLOT_THEME but override margin and height to give titles room to breathe
+    theme2 = PLOT_THEME.copy()
+    theme2['margin'] = dict(l=60, r=30, t=90, b=50)
+    
+    fig2.update_layout(**theme2, height=650,
                         title=dict(text="Solar Wind History (72-hour input window)", font=dict(color="black", size=20, weight="bold")))
     st.plotly_chart(fig2, use_container_width=True)
 
