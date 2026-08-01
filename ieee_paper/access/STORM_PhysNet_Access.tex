@@ -313,9 +313,9 @@ pass for a batch of input sequences \(\mathbf{X} \in \mathbb{R}^{B \times T \tim
 \(d_{\mathrm{model}}\);
 (2) the adaptive delay module interpolates the solar-wind channels by
 \(\tau\) time steps;
-(3) the \(B_z\) gate module computes a channel-wise modulation vector;
-(4) a Transformer encoder (\(L\) layers of standard temporal self-attention)
+(3) a Transformer encoder (\(L\) layers of standard temporal self-attention)
 processes the sequence and the final time-step representation is extracted;
+(4) the \(B_z\)-conditioned gate module computes a modulation scalar to gate the hidden representation;
 (5) a shared latent vector is projected by three independent residual heads
 to produce the three horizon forecasts.
 The measured model size is approximately \(3.4\times10^{5}\) parameters for STORM-BzGate versus \(\approx8.4\times10^{5}\) for the matched Transformer baseline.
@@ -351,20 +351,15 @@ Southward IMF \(B_z\) is the primary driver of dayside reconnection and
 subsequent energy injection into the ring current and outer belt. We exploit
 this physical link with a lightweight gate:
 \begin{align}
-g &= \sigma\!\left(w_1 B_z + w_2 |B_z| + w_3 P_{\mathrm{dyn}} + b\right),
+\sigma &= \mathrm{sigmoid}(\mathbf{W}_g [\mathbf{h}, B_z] + b),
 \label{eq:gate}
 \\
-\tilde{\mathbf{h}} &= g \cdot \mathbf{h} + (1-g)\cdot\mathbf{h}_0,
+\mathbf{h}_{\mathrm{gated}} &= \sigma \odot \mathbf{h},
 \label{eq:gated}
 \end{align}
-where \(\mathbf{h}\) is the current feature vector, \(\mathbf{h}_0\) is a
-learned quiet-time reference embedding, and \(\sigma\) is the sigmoid function.
-The gate \(g\) is close to 1 (active) when \(B_z\) is strongly negative and
-dynamic pressure is elevated---conditions indicative of geomagnetic storm onset.
-Parameters \(w_1, w_2, w_3, b\) are learned end-to-end. Including
-\(|B_z|\) alongside \(B_z\) allows the gate to respond to both the southward
-polarity and the amplitude of the field, enabling it to distinguish mild
-southward excursions from sustained, intense storm drivers.
+where \(\mathbf{h}\) is the final Transformer feature vector, \([\mathbf{h}, B_z]\) denotes concatenation with the southward IMF driver, and \(\sigma\) is the sigmoid function.
+The gating mechanism \(\sigma\) modulates feature propagation based on southward (\(B_z < 0\)) conditions.
+The parameters \(\mathbf{W}_g, b\) are learned end-to-end. This approach directly scales the internal features during potential geomagnetic storm events, preserving the representation amplitude necessary for accurate storm-time forecasting.
 
 \subsection{Transformer Backbone}
 We use a standard Transformer encoder~\cite{b24} as the backbone:
@@ -663,7 +658,7 @@ Experiment & PE\(_{45\mathrm{m}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\
 \midrule
 Zero-shot (TF) & \(-32.22\) & \(-2.16\) & \(-0.55\) & \(-7.64\) & \(-16.65\) \\
 Zero-shot (BzGate) & \(\approx0\) & \(\approx0\) & \(\approx0\) & \(\approx0\) & \(0.02\) \\
-Frozen TL & 0.18 & 0.56 & 0.66 & \textbf{0.53} & \textbf{0.69} \\
+Frozen TL & 0.18 & 0.564 & 0.66 & \textbf{0.53} & \textbf{0.69} \\
 Full TL & 0.25 & 0.68 & 0.75 & 0.18 & 0.60 \\
 Scratch & 0.25 & 0.69 & 0.73 & 0.18 & 0.47 \\
 Few-shot 10\% & \(\approx0\) & 0.01 & 0.02 & 0.03 & \(\approx0\) \\

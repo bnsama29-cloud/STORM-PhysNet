@@ -196,7 +196,7 @@ If you find this code or our pre-trained models useful in your research, please 
 @article{bn2026storm,
   title={STORM-PhysNet: Storm-aware Physics-Informed Network for GEO Electron Flux Forecasting},
   author={BN, Samarth},
-  journal={IEEE Access / IEEE Conference},
+  journal={IEEE Access},
   year={2026}
 }
 ```
