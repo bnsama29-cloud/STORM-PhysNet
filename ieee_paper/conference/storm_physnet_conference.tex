@@ -51,7 +51,7 @@ that zero-shot deployment fails (PE\(_{6h}=-2.16\)) due to sensor mismatch;
 frozen-encoder fine-tuning with only \(\sim\)73K trainable parameters
 (input and output projections only) recovers
 PE\(_{6h}=0.564\) and achieves the best storm-time and high-flux skill of
-any strategy. Learned delays fall near \(1.5\,\mathrm{h}\) on the final evaluation checkpoints, consistent with residual L1--Earth transit under typical solar-wind speeds. Code: \url{https://github.com/bnsama29-cloud/STORM-PhysNet}.
+any strategy. Learned delays fall near \(1.5\,\mathrm{h}\) on the final evaluation checkpoints, consistent with residual L1--Earth transit under typical solar-wind speeds.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -132,6 +132,13 @@ exist for other fleets~\cite{sinha2021premeve}; the specific GOES\(\rightarrow\)
 path at \(\approx 82^\circ\)E, with frozen-encoder fine-tuning and few-shot
 curves, is the transfer setting studied here.
 
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig_system_architecture.png}
+\caption{STORM-PhysNet: adaptive delay, temporal Transformer, \(B_z\) gate, and multi-horizon heads.}
+\label{fig:arch}
+\end{figure*}
+
 \section{Data and Metrics}
 %% ====================================================================
 \textbf{GOES-15.} We use \(E>2\,\mathrm{MeV}\) integral electron flux from a
@@ -168,12 +175,7 @@ PE \(< 0\) means the model is worse than persistence.
 %% ====================================================================
 
 
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_system_architecture.png}
-\caption{STORM-PhysNet: adaptive delay, temporal Transformer, \(B_z\) gate, and multi-horizon heads.}
-\label{fig:arch}
-\end{figure}
+
 
 \subsection{Adaptive Propagation Delay}
 Solar wind measured at L1 reaches the magnetopause after a transit of
@@ -452,6 +454,7 @@ L1 transit times, which is a useful sanity check even though it is not a formal
 physics proof. Future work can extend the GRASP window across a fuller solar
 cycle and test whether EUV or multi-orbit inputs tighten the short-horizon
 tail further.
+
 
 \section*{Acknowledgments}
 The authors thank the GOES, OMNI, and GRASP data providers.

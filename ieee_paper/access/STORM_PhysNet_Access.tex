@@ -33,7 +33,7 @@ the providers of GOES, OMNI, and GRASP data products.}
 \corresp{Corresponding author: Samarth BN (e-mail: samarthbn.ec25@rvce.edu.in).}
 
 \begin{abstract}
-Energetic electrons above 2\,MeV at geostationary Earth orbit (GEO) constitute a persistent radiation hazard for satellites. We introduce STORM-PhysNet, a multi-horizon neural forecast model that couples a standard Transformer encoder (temporal self-attention over a 72-hour window) with three domain-aware modules: (i) an adaptive solar-wind propagation delay that time-shifts inputs to account for L1-to-Earth transit, (ii) a \(B_z\)-conditioned physics gate that selectively amplifies storm-sensitive features during southward IMF, and (iii) residual heads issuing simultaneous 45-minute, 6-hour, and 12-hour log-flux forecasts. Evaluated on GOES-15 data using chronological splits and three independent seeds, the \(B_z\)-gated model (STORM-BzGate) achieves a 6\,h prediction efficiency (PE) of \(0.669\pm0.030\) on all hours and \(0.674\pm0.017\) on storm hours, compared with \(0.648\pm0.031\) and \(0.612\pm0.042\) for a matched Transformer. At 45\,min, STORM remains stable (\(\mathrm{PE}=0.34\pm0.05\)) while the Transformer shows large seed-to-seed variance (range: \(-0.456\) to \(+0.002\)). Ablations indicate the adaptive delay and physics loss contribute about 3.0 and 2.3 PE points to storm-time skill. On GSAT-19 GRASP, zero-shot transfer fails; frozen-encoder fine-tuning with \(\sim\)73K trainable parameters recovers PE\(_{6h}=0.564\) (storm PE\(=0.529\)). A parameter-free Transformer+STORM average reaches PE \(0.718\). Code: \url{https://github.com/bnsama29-cloud/STORM-PhysNet}.
+Energetic electrons above 2\,MeV at geostationary Earth orbit (GEO) constitute a persistent radiation hazard for satellites. We introduce STORM-PhysNet, a multi-horizon neural forecast model that couples a standard Transformer encoder (temporal self-attention over a 72-hour window) with three domain-aware modules: (i) an adaptive solar-wind propagation delay that time-shifts inputs to account for L1-to-Earth transit, (ii) a \(B_z\)-conditioned physics gate that selectively amplifies storm-sensitive features during southward IMF, and (iii) residual heads issuing simultaneous 45-minute, 6-hour, and 12-hour log-flux forecasts. Evaluated on GOES-15 data using chronological splits and three independent seeds, the \(B_z\)-gated model (STORM-BzGate) achieves a 6\,h prediction efficiency (PE) of \(0.669\pm0.030\) on all hours and \(0.674\pm0.017\) on storm hours, compared with \(0.648\pm0.031\) and \(0.612\pm0.042\) for a matched Transformer. At 45\,min, STORM remains stable (\(\mathrm{PE}=0.34\pm0.05\)) while the Transformer shows large seed-to-seed variance (range: \(-0.456\) to \(+0.002\)). Ablations indicate the adaptive delay and physics loss contribute about 3.0 and 2.3 PE points to storm-time skill. On GSAT-19 GRASP, zero-shot transfer fails; frozen-encoder fine-tuning with \(\sim\)73K trainable parameters recovers PE\(_{6h}=0.564\) (storm PE\(=0.529\)). A parameter-free Transformer+STORM average reaches PE \(0.718\).
 \end{abstract}
 
 \begin{keywords}
@@ -702,6 +702,21 @@ appear in the tables.}
 \section{Discussion}
 \label{sec:discussion}
 %% ====================================================================
+\begin{table}[!t]
+\centering
+\caption{Model size and inference cost (batch 32, GPU).}
+\label{tab:compute}
+\begin{tabular}{lcc}
+\toprule
+Model & Parameters & ms / batch \\
+\midrule
+Transformer & $\approx 8.45\times 10^{5}$ & 3.38 \\
+STORM-BzGate & $\approx 3.43\times 10^{5}$ & 4.77 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+STORM is smaller than the matched Transformer while improving storm PE and 45 min stability.
 Physics-informed choices help most where forecasting is hardest: at short horizons and during
 geomagnetic storm intervals. At the 45-minute horizon, where pure
 autoregressive skill decays fastest and timing errors are most expensive,
@@ -753,7 +768,7 @@ not explicitly model variate-axis correlations; performance during rapidly
 evolving interplanetary coronal mass ejections may therefore be limited. Published PE values in the
 space-weather literature use heterogeneous cadences, flux energy thresholds,
 and persistence definitions; direct numerical comparison without normalization
-is misleading~\cite{b18,b17}.
+is misleading~\cite{b18,b17}. Furthermore, evaluating models across only three random seeds means that determining the definitive statistical significance of small performance differences remains exploratory.
 
 %% ====================================================================
 \section{Conclusion}
@@ -778,6 +793,7 @@ interpretable physical validation of the model's internal representations.
 These results establish a transparent benchmark against which future
 models---incorporating EUV imagery, multi-orbit data coverage, or larger
 pretraining corpora from operational archives---can be directly measured.
+
 
 \section*{Acknowledgment}
 The authors thank the data providers for GOES, OMNI, and GRASP products.
