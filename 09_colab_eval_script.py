@@ -513,42 +513,47 @@ def main():
     if grasp_dir.exists():
         grasp_df = read_grasp_directory(str(grasp_dir))
         if not grasp_df.empty:
-            n = len(grasp_df)
-            train_grasp = grasp_df.iloc[: int(n * 0.8)]
-            val_grasp = grasp_df.iloc[int(n * 0.8) : int(n * 0.9)]
-            test_grasp = grasp_df.iloc[int(n * 0.9) :]
-            _, _, grasp_loader = make_dataloaders(
-                train_grasp,
-                val_grasp,
-                test_grasp,
-                seq_len=sequence_length,
-                batch_size=batch_size,
-                storm_weight=1.0,
-                num_workers=0,
-            )
-            if 'storm_bz' in checkpoint_map:
-                ckpt_path = checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])]
-                goes_model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
-                load_checkpoint(goes_model, ckpt_path, device)
-                y_true, y_pred, y_persist, y_dst, y_kp, _, _ = predict_model(goes_model, grasp_loader, device)
-                before_df = eval_metrics(y_true, y_pred, y_persist, kp=y_kp, dst=y_dst)
-                before_df['stage'] = 'GOES-only'
-                before_df.to_csv(output_dir / 'Tables' / 'grasp_zero_shot_metrics.csv', index=False)
-                print('Saved GRASP zero-shot metrics')
-                try:
-                    from src.training.transfer_learning import GRASPTransferLearner
-                    transfer = GRASPTransferLearner(config=config, device=device)
-                    model_ft = transfer.fine_tune(goes_model, grasp_loader, grasp_loader, epochs=3, lr=1e-4)
-                    torch.save(model_ft.state_dict(), output_dir / 'Tables' / 'storm_bz_grasp_finetuned.pt')
-                    y_true, y_pred, y_persist, y_dst, y_kp, _, _ = predict_model(model_ft, grasp_loader, device)
-                    after_df = eval_metrics(y_true, y_pred, y_persist, kp=y_kp, dst=y_dst)
-                    after_df['stage'] = 'GRASP-finetuned'
-                    pd.concat([before_df, after_df], ignore_index=True).to_csv(output_dir / 'Tables' / 'grasp_transfer_comparison.csv', index=False)
-                    print('Saved GRASP transfer comparison metrics')
-                except Exception as exc:
-                    print('Transfer learning module unavailable or failed:', exc)
+            grasp_raw = grasp_df.join(wind_df, how='inner')
+            if grasp_raw.empty:
+                print('GRASP and OMNI data have no overlapping timestamps.')
             else:
-                print('No storm_bz checkpoint found for GRASP analysis.')
+                grasp_processed = preproc.transform(grasp_raw)
+                n = len(grasp_processed)
+                train_grasp = grasp_processed.iloc[: int(n * 0.8)]
+                val_grasp = grasp_processed.iloc[int(n * 0.8) : int(n * 0.9)]
+                test_grasp = grasp_processed.iloc[int(n * 0.9) :]
+                _, _, grasp_loader = make_dataloaders(
+                    train_grasp,
+                    val_grasp,
+                    test_grasp,
+                    seq_len=sequence_length,
+                    batch_size=batch_size,
+                    storm_weight=1.0,
+                    num_workers=0,
+                )
+                if 'storm_bz' in checkpoint_map:
+                    ckpt_path = checkpoint_map['storm_bz'][min(checkpoint_map['storm_bz'])]
+                    goes_model = build_model('storm_bz', n_sw=test_loader.dataset.n_sw_features, seq_len=sequence_length, config=config)
+                    load_checkpoint(goes_model, ckpt_path, device)
+                    y_true, y_pred, y_persist, y_dst, y_kp, _, _ = predict_model(goes_model, grasp_loader, device)
+                    before_df = eval_metrics(y_true, y_pred, y_persist, kp=y_kp, dst=y_dst)
+                    before_df['stage'] = 'GOES-only'
+                    before_df.to_csv(output_dir / 'Tables' / 'grasp_zero_shot_metrics.csv', index=False)
+                    print('Saved GRASP zero-shot metrics')
+                    try:
+                        from src.training.transfer_learning import GRASPTransferLearner
+                        transfer = GRASPTransferLearner(config=config, device=device)
+                        model_ft = transfer.fine_tune(goes_model, grasp_loader, grasp_loader, epochs=3, lr=1e-4)
+                        torch.save(model_ft.state_dict(), output_dir / 'Tables' / 'storm_bz_grasp_finetuned.pt')
+                        y_true, y_pred, y_persist, y_dst, y_kp, _, _ = predict_model(model_ft, grasp_loader, device)
+                        after_df = eval_metrics(y_true, y_pred, y_persist, kp=y_kp, dst=y_dst)
+                        after_df['stage'] = 'GRASP-finetuned'
+                        pd.concat([before_df, after_df], ignore_index=True).to_csv(output_dir / 'Tables' / 'grasp_transfer_comparison.csv', index=False)
+                        print('Saved GRASP transfer comparison metrics')
+                    except Exception as exc:
+                        print('Transfer learning module unavailable or failed:', exc)
+                else:
+                    print('No storm_bz checkpoint found for GRASP analysis.')
         else:
             print('GRASP directory exists but contains no data.')
     else:
