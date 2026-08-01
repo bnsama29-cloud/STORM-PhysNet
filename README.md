@@ -130,6 +130,29 @@ Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zer
 
 ---
 
+## 💻 Real-Time Operational Dashboard
+
+STORM-PhysNet includes a fully interactive Streamlit dashboard designed for operational space weather monitoring. It visualizes the model's response to dynamic solar wind drivers in real-time.
+
+### Nominal Space Weather (Quiet Baseline)
+During typical conditions ($B_z \approx -2$ nT, Solar Wind $\approx 400$ km/s), the $B_z$ Physics Gate remains closed. The model produces stable, low-variance forecasts without false alarms.
+<p align="center">
+  <img src="interpretations/Figures/fig_dashboard_quiet_flux.png" width="48%">
+  <img src="interpretations/Figures/fig_dashboard_quiet_solarwind.png" width="48%">
+</p>
+
+### Extreme Geomagnetic Storm Trigger
+When a simulated Coronal Mass Ejection (CME) impacts ($B_z < -10$ nT, Solar Wind $>800$ km/s, elevated proton density), the dashboard immediately reflects the physics logic:
+- The **STORM ACTIVE** badge triggers.
+- The **$B_z$ Physics Gate** activation spikes to $>90\%$, dynamically altering the internal feature representation.
+- The **Multi-Horizon Forecasting Heads** project massive flux enhancements with appropriately widened uncertainty bounds.
+<p align="center">
+  <img src="interpretations/Figures/fig_dashboard_storm_flux.png" width="48%">
+  <img src="interpretations/Figures/fig_dashboard_storm_solarwind.png" width="48%">
+</p>
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
