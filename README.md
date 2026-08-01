@@ -186,5 +186,18 @@ We welcome contributions from the space weather and machine learning communities
 
 ---
 
+## 📝 Citation
+If you find this code or our pre-trained models useful in your research, please consider citing:
+```bibtex
+@article{bn2026storm,
+  title={STORM-PhysNet: Storm-aware Physics-Informed Network for GEO Electron Flux Forecasting},
+  author={BN, Samarth},
+  journal={IEEE Access / IEEE Conference},
+  year={2026}
+}
+```
+
+---
+
 **Author:** Samarth BN (RV College of Engineering)  
 **Acknowledgment:** The authors gratefully acknowledge the providers of GOES, OMNI, and GSAT-19 (GRASP) data products.
