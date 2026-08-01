@@ -5,27 +5,27 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-brightgreen.svg)](https://github.com/bnsama29-cloud/STORM-PhysNet)
 
-STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux ($E > 2$ MeV) at Geostationary Earth Orbit (GEO). By explicitly embedding space weather physics—such as solar wind propagation delays and geomagnetic storm triggers—into a state-of-the-art Transformer architecture, this model avoids the catastrophic instabilities seen in standard black-box architectures during high-impact operational horizons.
+STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux (*E* > 2 MeV) at Geostationary Earth Orbit (GEO). By explicitly embedding space weather physics—such as solar wind propagation delays and geomagnetic storm triggers—into a state-of-the-art Transformer architecture, this model avoids the catastrophic instabilities seen in standard black-box architectures during high-impact operational horizons.
 
 ---
 
 ## 🛰️ Architecture Overview
 
-The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let $\mathbf{X}_{sw} \in \mathbb{R}^{T \times 14}$ represent the multivariate solar wind input sequence and $\mathbf{X}_{flux} \in \mathbb{R}^{T \times 1}$ represent the local electron flux persistence, where $T=72$ hours is the lookback window.
+The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 14</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window.
 
 ![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
 
 ### Adaptive Propagation Delay
-Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. This module dynamically learns the solar wind transit time $\tau = f_{\theta}(\mathbf{X}_{sw}) \in [0.5, 1.5]$ hours. The input features are continuously shifted in the temporal domain such that $\mathbf{X}_{sw}^{\prime}(t) = \mathbf{X}_{sw}(t - \tau)$, perfectly aligning the upstream drivers with the target geostationary response.
+Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. This module dynamically learns the solar wind transit time *τ* = *f<sub>θ</sub>*(**X**<sub>sw</sub>) ∈ [0.5, 1.5] hours. The input features are continuously shifted in the temporal domain such that **X**'<sub>sw</sub>(*t*) = **X**<sub>sw</sub>(*t* - *τ*), perfectly aligning the upstream drivers with the target geostationary response.
 
 ### Temporal Encoding
-The aligned solar wind features and the raw electron flux are concatenated and linearly projected into a high-dimensional hidden space. Positional encodings $\mathbf{P}_{pos}$ are added, yielding the initial token sequence $\mathbf{Z}^{(0)} = [\mathbf{X}_{sw}^{\prime} \| \mathbf{X}_{flux}]\mathbf{W}_{in} + \mathbf{P}_{pos}$. A Multi-Head Attention (MHA) Transformer backbone extracts temporal dependencies across the 72-hour window, outputting the final fused hidden representation $\mathbf{h}$.
+The aligned solar wind features and the raw electron flux are concatenated and linearly projected into a high-dimensional hidden space. Positional encodings **P**<sub>pos</sub> are added, yielding the initial token sequence **Z**<sup>(0)</sup> = [**X**'<sub>sw</sub> || **X**<sub>flux</sub>]**W**<sub>in</sub> + **P**<sub>pos</sub>. A Multi-Head Attention (MHA) Transformer backbone extracts temporal dependencies across the 72-hour window, outputting the final fused hidden representation **h**.
 
-### $B_z$ Physics Gate (Storm Trigger)
-During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF $B_z < 0$), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the $B_z$ Physics Gate. A gating scalar $\sigma = \text{Sigmoid}(\mathbf{W}_g \mathbf{h} + b_g)$ is computed from the hidden representation. However, this gate is strictly controlled by the raw $B_z$ input feature. If $B_z < 0$, the hidden state is amplified ($\mathbf{h}_{gated} = \sigma \odot \mathbf{h}$); otherwise, the representation passes unchanged ($\mathbf{h}_{gated} = \mathbf{h}$). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
+### *B<sub>z</sub>* Physics Gate (Storm Trigger)
+During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF *B<sub>z</sub>* < 0), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the *B<sub>z</sub>* Physics Gate. A gating scalar *σ* = Sigmoid(**W**<sub>g</sub>**h** + *b<sub>g</sub>*) is computed from the hidden representation. However, this gate is strictly controlled by the raw *B<sub>z</sub>* input feature. If *B<sub>z</sub>* < 0, the hidden state is amplified (**h**<sub>gated</sub> = *σ* ⊙ **h**); otherwise, the representation passes unchanged (**h**<sub>gated</sub> = **h**). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
 
 ### Multi-Horizon Forecasting Heads
-Finally, the physics-gated representation $\mathbf{h}_{gated}$ is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux $\hat{Y}$ and aleatoric uncertainty variance $s^2$ at the critical 45-minute (short-term), 6-hour (operational), and 12-hour (long-term) horizons simultaneously.
+Finally, the physics-gated representation **h**<sub>gated</sub> is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux *Ŷ* and aleatoric uncertainty variance *s*<sup>2</sup> at the critical 45-minute (short-term), 6-hour (operational), and 12-hour (long-term) horizons simultaneously.
 
 ---
 
@@ -135,16 +135,16 @@ Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zer
 STORM-PhysNet includes a fully interactive Streamlit dashboard designed for operational space weather monitoring. It visualizes the model's response to dynamic solar wind drivers in real-time.
 
 ### Nominal Space Weather (Quiet Baseline)
-During typical conditions ($B_z \approx -2$ nT, Solar Wind $\approx 400$ km/s), the $B_z$ Physics Gate remains closed. The model produces stable, low-variance forecasts without false alarms.
+During typical conditions (*B<sub>z</sub>* ≈ -2 nT, Solar Wind ≈ 400 km/s), the *B<sub>z</sub>* Physics Gate remains closed. The model produces stable, low-variance forecasts without false alarms.
 <p align="center">
   <img src="interpretations/Figures/fig_dashboard_quiet_flux.png" width="48%">
   <img src="interpretations/Figures/fig_dashboard_quiet_solarwind.png" width="48%">
 </p>
 
 ### Extreme Geomagnetic Storm Trigger
-When a simulated Coronal Mass Ejection (CME) impacts ($B_z < -10$ nT, Solar Wind $>800$ km/s, elevated proton density), the dashboard immediately reflects the physics logic:
+When a simulated Coronal Mass Ejection (CME) impacts (*B<sub>z</sub>* < -10 nT, Solar Wind > 800 km/s, elevated proton density), the dashboard immediately reflects the physics logic:
 - The **STORM ACTIVE** badge triggers.
-- The **$B_z$ Physics Gate** activation spikes to $>90\%$, dynamically altering the internal feature representation.
+- The ***B<sub>z</sub>* Physics Gate** activation spikes to > 90%, dynamically altering the internal feature representation.
 - The **Multi-Horizon Forecasting Heads** project massive flux enhancements with appropriately widened uncertainty bounds.
 <p align="center">
   <img src="interpretations/Figures/fig_dashboard_storm_flux.png" width="48%">
