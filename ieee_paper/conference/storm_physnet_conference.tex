@@ -240,7 +240,7 @@ cost.
 
 %% ====================================================================
 \paragraph{Baselines and gating variants.}
-To isolate the impact of our physics-informed components, we compare STORM-BzGate against several structural alternatives. The Vanilla Transformer employs the identical temporal attention core and prediction heads, but strictly omits the delay and gating modules. As our primary benchmark, it achieves $\mathrm{PE}_{\mathrm{all}}=0.648\pm0.031$, but suffers from severe instability at the 45-minute horizon. Standard recurrent (LSTM) and static (MLP) baselines provide intermediate performance, while a purely convolutional approach (CNN) with global pooling struggles significantly on this dataset. We also evaluate alternative gating strategies: STORM-Cathode utilizes a bipolar non-linearity based on $B_z$ and dynamic pressure, STORM-Radiotrophic applies a soft gain using only field amplitude (ignoring polarity), and STORM-Cathode+Spec incorporates a minor spectral residual block. Crucially, all variants share the identical delay and Transformer backbone of the primary model. None of these alternatives surpass STORM-BzGate's performance during storm intervals. Furthermore, a strict magnitude-only gate (BzMag) results in a severe loss of predictive skill, reinforcing the physical necessity of IMF polarity. Table~\ref{tab:main} details the performance of these variants for transparency, establishing STORM-BzGate as the optimal architecture.
+To isolate our physics components, we evaluate several alternatives against STORM-BzGate. The Vanilla Transformer uses the same attention core and heads but lacks the delay and gating, achieving $\mathrm{PE}_{\mathrm{all}}=0.648\pm0.031$ but suffering instability at 45 minutes. Standard LSTM and MLP models offer intermediate accuracy, while a CNN with global pooling fails on this dataset. We also test gating variants—STORM-Cathode (bipolar $B_z$/$P_{\mathrm{dyn}}$), STORM-Radiotrophic (amplitude only), and STORM-Cathode+Spec (spectral residual)—all sharing the identical delay and Transformer core. None match BzGate's storm-time performance. A magnitude-only gate (BzMag) collapses completely, proving polarity is essential. Table~\ref{tab:main} reports all variants, confirming BzGate as the optimal model.
 %% ====================================================================
 \section{Results}
 %% ====================================================================
@@ -311,7 +311,7 @@ gating fails to distinguish southward from northward IMF.
 \end{minipage}
 \end{table}
 
-Rows labeled Cathode, Radiotrophic, and Cathode+Spec in Table~\ref{tab:main} utilize the definitions established in Section~IV; they represent modular variations of the primary architecture rather than entirely distinct end-to-end models.
+Cathode, Radiotrophic, and Cathode+Spec variants in Table~\ref{tab:main} are modular gating modifications defined in Section~IV, not distinct end-to-end models.
 
 \begin{figure}[t]
 \centering
