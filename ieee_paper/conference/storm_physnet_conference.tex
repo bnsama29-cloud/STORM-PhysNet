@@ -239,6 +239,9 @@ ensemble averages predictions in log-flux space at zero additional training
 cost.
 
 %% ====================================================================
+\paragraph{Baselines and gating variants.}
+To isolate the impact of our physics-informed components, we compare STORM-BzGate against several structural alternatives. The Vanilla Transformer employs the identical temporal attention core and prediction heads, but strictly omits the delay and gating modules. As our primary benchmark, it achieves $\mathrm{PE}_{\mathrm{all}}=0.648\pm0.031$, but suffers from severe instability at the 45-minute horizon. Standard recurrent (LSTM) and static (MLP) baselines provide intermediate performance, while a purely convolutional approach (CNN) with global pooling struggles significantly on this dataset. We also evaluate alternative gating strategies: STORM-Cathode utilizes a bipolar non-linearity based on $B_z$ and dynamic pressure, STORM-Radiotrophic applies a soft gain using only field amplitude (ignoring polarity), and STORM-Cathode+Spec incorporates a minor spectral residual block. Crucially, all variants share the identical delay and Transformer backbone of the primary model. None of these alternatives surpass STORM-BzGate's performance during storm intervals. Furthermore, a strict magnitude-only gate (BzMag) results in a severe loss of predictive skill, reinforcing the physical necessity of IMF polarity. Table~\ref{tab:main} details the performance of these variants for transparency, establishing STORM-BzGate as the optimal architecture.
+%% ====================================================================
 \section{Results}
 %% ====================================================================
 
@@ -307,6 +310,8 @@ confirm that the signed \(B_z\) component is essential---plain-magnitude
 gating fails to distinguish southward from northward IMF.
 \end{minipage}
 \end{table}
+
+Rows labeled Cathode, Radiotrophic, and Cathode+Spec in Table~\ref{tab:main} utilize the definitions established in Section~IV; they represent modular variations of the primary architecture rather than entirely distinct end-to-end models.
 
 \begin{figure}[t]
 \centering

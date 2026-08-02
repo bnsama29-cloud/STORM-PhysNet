@@ -25,7 +25,9 @@ The aligned solar wind features and the raw electron flux are concatenated and l
 During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF *B<sub>z</sub>* < 0), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the *B<sub>z</sub>* Physics Gate. A gating scalar *σ* = Sigmoid(**W**<sub>g</sub>**h** + *b<sub>g</sub>*) is computed from the hidden representation. However, this gate is strictly controlled by the raw *B<sub>z</sub>* input feature. If *B<sub>z</sub>* < 0, the hidden state is amplified (**h**<sub>gated</sub> = *σ* ⊙ **h**); otherwise, the representation passes unchanged (**h**<sub>gated</sub> = **h**). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
 
 ### Multi-Horizon Forecasting Heads
-Finally, the physics-gated representation **h**<sub>gated</sub> is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux *Ŷ* and aleatoric uncertainty variance *s*<sup>2</sup> at the critical 45-minute (short-term), 6-hour (operational), and 12-hour (long-term) horizons simultaneously.
+Finally, the physics-gated representation **h**<sub>gated</sub> is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux *Ŷ* at the critical 45-minute (short-term), 6-hour (operational), and 12-hour (long-term) horizons simultaneously.
+
+> **Note on Experimental Variants:** This repository includes code for several experimental alternative gating mechanisms (e.g., Cathode, Radiotrophic). These are modular variants that share the identical delay and Transformer backbone as the primary model. **STORM-BzGate** remains the primary, highest-performing architecture evaluated in the main study.
 
 ---
 

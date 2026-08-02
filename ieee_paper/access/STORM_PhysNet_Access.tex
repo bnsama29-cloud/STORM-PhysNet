@@ -423,6 +423,32 @@ and ablations. Transfer fine-tuning uses a lower initial learning rate
 (\(5\times10^{-5}\)) and fine-tunes for at most 50 epochs.
 
 %% ====================================================================
+\subsection{Baseline and Variant Models}
+\label{sec:baselines-variants}
+For a comprehensive comparison, we establish multiple baseline models and structural variants. All models are trained and evaluated using the exact same chronological data splits, the identical 72-hour historical lookback window, and the same optimization protocol across three distinct random seeds (\(\{42,43,44\}\)). The target outputs remain the 45-minute, 6-hour, and 12-hour predictions of log-flux. To isolate the effects of our proposed physics-informed components, the variants alter only the gating mechanism or the core encoder, keeping all other experimental factors constant.
+
+\paragraph{Vanilla Transformer Baseline.} 
+This backbone consists of a purely temporal self-attention encoder (configured with 4 layers, an embedding dimension of $d=128$, and 4 attention heads) that processes the 72-hour sequence. It outputs directly to linear prediction heads without utilizing the adaptive propagation delay or any physics-based gating. This model serves as the primary benchmark for the 6-hour forecast (achieving $\mathrm{PE}_{\mathrm{all}}=0.648\pm0.031$). While its performance is respectable during quiet geomagnetic periods, it exhibits significant instability at the critical 45-minute horizon (with PE scores oscillating between $-0.456$ and $+0.002$) and demonstrates reduced accuracy during storm intervals ($\mathrm{PE}_{\mathrm{storm}}=0.612\pm0.042$). Because STORM-BzGate utilizes this exact attention core, any performance gains can be confidently attributed to the addition of the delay and gating modules rather than an increase in model capacity.
+
+\paragraph{LSTM Baseline.} 
+This model employs a standard two-layer long short-term memory (LSTM) network with 128 hidden units per layer. It processes the concatenated multivariate input sequence and uses the final hidden state for multi-horizon forecasting. Although the LSTM natively models temporal dependencies, it lacks a mechanism for dynamic phase-front delay correction or $B_z$-driven feature modulation. On the evaluated split, it achieves an overall $\mathrm{PE}\approx0.61$, placing its performance between the MLP and the Transformer. However, it fails to match the storm-time accuracy and short-horizon reliability of STORM-BzGate.
+
+\paragraph{MLP Baseline.} 
+We implement a straightforward multi-layer perceptron (with layers of 512, 256, and 128 units and ReLU activations) that ingests the completely flattened 72-hour input window. This architecture strips away all recurrent or attention-based temporal modeling. The resulting overall performance ($\mathrm{PE}_{\mathrm{all}}\approx0.53$) demonstrates that simple static non-linear regression cannot adequately capture the dynamics of the radiation belts. This confirms that the success of STORM-PhysNet relies heavily on explicit sequence modeling.
+
+\paragraph{CNN Baseline.} 
+This baseline uses three 1-D convolutional layers (using a kernel size of 5 and 128 feature channels) followed by a global max-pooling operation. While the convolutional filters can identify local temporal signatures, the global pooling operation discards the precise sequential phase information required for accurate prediction during moderate activity. Consequently, this model yields the lowest predictive skill on the test split ($\mathrm{PE}_{\mathrm{all}}\approx0.03$), underscoring the necessity of properly aligning solar-wind timing.
+
+\paragraph{STORM-Cathode.} 
+This variant preserves the delay module, the temporal Transformer backbone, and the forecasting heads of STORM-BzGate, but modifies the gating mechanism. It utilizes a bipolar (cathode-anode) non-linearity driven by both $B_z$ and dynamic pressure. This configuration explicitly tests whether the system benefits from applying opposite modulation schemes for northward and southward IMF. While its overall mean PE is competitive, its storm-specific PE drops to $0.639\pm0.037$ (compared to $0.674\pm0.017$ for STORM-BzGate). This indicates that the signed, soft $B_z$ gate is superior for forecasting extreme events.
+
+\paragraph{STORM-Radiotrophic.} 
+In this configuration, the backbone remains identical to STORM-BzGate, but the gate is modified to respond solely to the magnitude of the driving fields ($|B_z|$ and $P_{\mathrm{dyn}}$) rather than their polarity. By applying a soft-plus style amplification independent of the sign of $B_z$, we investigate whether raw magnetic field strength is a sufficient predictor for storm activity. This model achieves a stable $\mathrm{PE}_{\mathrm{all}}=0.656\pm0.002$; however, its storm-time performance lags behind that of the BzGate model. This confirms the physical intuition that the southward polarity of the IMF is critical for accurate storm forecasting.
+
+\paragraph{STORM-Cathode+Spec.} 
+This architecture combines the Cathode gate with an additional lightweight spectral residual connection (implemented as a short temporal convolution over the pooled latent vector) prior to the multi-horizon MLPs. This variant serves purely to test whether additional capacity in the frequency domain improves the 6-hour forecasts, rather than acting as a novel physical prior. Its performance falls between the standard Cathode variant and STORM-BzGate. Because it does not exceed the storm-time accuracy of STORM-BzGate, we retain the original BzGate architecture as our primary model for all subsequent interpretability and transfer learning analyses.
+
+%% ====================================================================
 \section{Experiments and Results}
 \label{sec:results}
 %% ====================================================================
@@ -465,6 +491,8 @@ TF+Bz ensemble & -- & \textbf{0.718} & \textbf{0.703} & \textbf{0.783} & \textbf
 \bottomrule
 \end{tabular}
 \end{table*}
+
+Rows labeled Cathode, Radiotrophic, and Cathode+Spec in Table~\ref{tab:main} utilize the configurations detailed in Section~\ref{sec:baselines-variants}. They represent modular variations of the primary architecture rather than entirely distinct end-to-end models.
 
 LSTM achieves PE\(_\mathrm{all}\)=0.614, which is competitive with the
 Transformer at first glance, but its storm-time skill (0.634) and high-flux
