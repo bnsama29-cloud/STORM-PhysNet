@@ -77,8 +77,7 @@ STORM-PhysNet/
 ├── configs/                        # YAML configuration files for hyperparameters and sweeps
 ├── dashboard/                      # Interactive Streamlit dashboard for real-time inference
 ├── epoch_metrics/                  # Epoch-level training logs and metrics
-├── interpretations/                # Generated metrics, tables, JSON stats, and figures
-└── STORM_PhysNet_Colab_Clean/      # Backup standalone Colab environments
+└── interpretations/                # Generated metrics, tables, JSON stats, and figures
 ```
 
 ---
