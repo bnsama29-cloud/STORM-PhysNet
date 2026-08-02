@@ -11,7 +11,7 @@ STORM-PhysNet is a domain-aware deep learning framework for forecasting high-ene
 
 ## 🛰️ Architecture Overview
 
-The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 15</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window. Total input features = 15 (solar wind) + 1 (flux) = **16**, matching the GOES–OMNI pipeline; GRASP may expose 15 after alignment.
+The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 14</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window. Total input features = 14 (solar wind) + 1 (flux) = **15**, matching the GOES–OMNI pipeline; GRASP may expose 14 after alignment.
 
 ![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
 
