@@ -4,7 +4,7 @@
 
 1. README PE table = paper Table I only (0.669/0.674 vs TF 0.648/0.612).
 2. Feature count: 16 (or "solar-wind features"), not 14.
-3. tau ≈ 1.5 h on final checkpoints.
+3. tau ≈ 1.09 h on final checkpoints.
 4. Params ≈ 3.4e5 (STORM) vs ≈ 8.4e5 (Transformer).
 5. Code availability link matches this repo.
 6. Add CITATION.cff or bib snippet for the paper title.
