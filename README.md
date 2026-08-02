@@ -41,6 +41,9 @@ STORM-PhysNet/
 ├── 03_ieee_eval.py                 # IEEE evaluation script to collect checkpoints and compute final tables
 ├── run_training.py                 # Local entry point for model training sweeps
 ├── requirements.txt                # Python package dependencies
+├── .gitignore                      # Git ignore configurations
+├── LICENSE                         # MIT License
+├── README.md                       # Repository documentation
 │
 ├── src/                            # Core source code
 │   ├── data/                       # Data processing pipelines
@@ -73,7 +76,9 @@ STORM-PhysNet/
 │
 ├── configs/                        # YAML configuration files for hyperparameters and sweeps
 ├── dashboard/                      # Interactive Streamlit dashboard for real-time inference
-└── interpretations/                # Generated metrics, tables, JSON stats, and figures
+├── epoch_metrics/                  # Epoch-level training logs and metrics
+├── interpretations/                # Generated metrics, tables, JSON stats, and figures
+└── STORM_PhysNet_Colab_Clean/      # Backup standalone Colab environments
 ```
 
 ---
