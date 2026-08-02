@@ -3,3 +3,7 @@ numpy
 PyYAML
 pandas
 scipy
+scikit-learn
+tqdm
+streamlit
+plotly
