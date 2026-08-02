@@ -40,6 +40,7 @@ STORM-PhysNet/
 ├── 02_train_ablations_baselines.py # Training script for ablation studies and classical baselines
 ├── 03_ieee_eval.py                 # IEEE evaluation script to collect checkpoints and compute final tables
 ├── run_training.py                 # Local entry point for model training sweeps
+├── requirements.txt                # Python package dependencies
 │
 ├── src/                            # Core source code
 │   ├── data/                       # Data processing pipelines
