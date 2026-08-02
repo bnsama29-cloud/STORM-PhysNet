@@ -13,7 +13,7 @@ STORM-PhysNet is a domain-aware deep learning framework for forecasting high-ene
 
 The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 16</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window.
 
-![System Architecture Overview](ieee_paper/figures/fig_system_architecture.png)
+![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
 
 ### Adaptive Propagation Delay
 Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. This module dynamically learns the solar wind transit time *τ* = *f<sub>θ</sub>*(**X**<sub>sw</sub>) ∈ [0.5, 1.5] hours. The input features are continuously shifted in the temporal domain such that **X**'<sub>sw</sub>(*t*) = **X**<sub>sw</sub>(*t* - *τ*), perfectly aligning the upstream drivers with the target geostationary response.
