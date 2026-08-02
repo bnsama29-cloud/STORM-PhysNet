@@ -102,7 +102,7 @@ Removing the Adaptive Delay costs **3.0 storm PE points**; removing the Physics 
 
 ![Ablation Results](interpretations/Figures/fig_ablation_6h.png)
 
-The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.5 hours**:
+The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.09 hours**:
 
 ![Propagation Delay Histogram](interpretations/Figures/fig_physics_tau_hist.png)
 
