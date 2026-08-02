@@ -95,20 +95,20 @@ STORM-PhysNet/
 ### 1. Multi-Horizon Reliability
 At the critical 45-minute horizon, standard Transformers are highly unstable across random seeds. STORM-PhysNet remains strictly reliable and outperforms baselines across all horizons.
 
-![Multi-Horizon PE](interpretations/Figures/fig1_horizon_pe.png)
+![Multi-Horizon PE](interpretations/Figures/fig_horizon_pe.png)
 
 ### 2. Ablation & Physics Constraints
 Removing the Adaptive Delay costs **3.0 storm PE points**; removing the Physics Gate costs **2.3 storm PE points**.
 
-![Ablation Results](interpretations/Figures/fig4_ablation_multi.png)
+![Ablation Results](interpretations/Figures/fig_ablation_6h.png)
 
 The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.5 hours**:
 
-![Propagation Delay Histogram](interpretations/Figures/fig6_delay_hist.png)
+![Propagation Delay Histogram](interpretations/Figures/fig_physics_tau_hist.png)
 
 The physics gate strictly activates during geomagnetic storm periods (Bz < 0 conditions), acting as an attention amplifier exactly when it matters most:
 
-![Gate Activation](interpretations/Figures/fig7_gate_activation.png)
+![Gate Activation](interpretations/Figures/fig_physics_gate_storm_quiet.png)
 
 ### 3. Feature Importance & Event Case Studies
 A massive permutation importance analysis (over 7,800 random feature shuffles) quantitatively confirms the model fundamentally relies on key solar wind drivers (like Bz and Flow Speed) over autoregressive persistence.
@@ -117,12 +117,12 @@ A massive permutation importance analysis (over 7,800 random feature shuffles) q
 
 During intense geomagnetic activity, the model tracks rapid flux enhancements successfully while maintaining tight bounds during quiet periods.
 
-![Event Case Studies](interpretations/Figures/fig_timeseries_storm.png)
+![Event Case Studies](interpretations/Figures/fig_case_studies.png)
 
 ### 4. Cross-Satellite Transfer (GRASP)
 Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only **~73K parameters** recovers robust skill ($PE_{6h} = 0.564$), demonstrating high practical value for newly commissioned space weather missions with scarce data.
 
-![GRASP Transfer Learning](interpretations/Figures/fig8_grasp_domain_gap.png)
+![GRASP Transfer Learning](interpretations/Figures/fig_grasp_transfer.png)
 
 
 Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zero-centered and Gaussian error distribution compared to the standard Transformer baseline.
