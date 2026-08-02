@@ -171,12 +171,17 @@ pip install -r requirements.txt
 ```
 
 ### 2. Reproducibility & Evaluation Pipeline
-To strictly reproduce the paper's multi-seed evaluation, ensure your data is located in the standard paths (`data/goes/`, `data/omni/`) and run the evaluation scripts across the three reported seeds `{42, 43, 44}`. 
-Alternatively, you can run the clean split Colab scripts in sequential order on a T4 GPU (run one script per session to avoid memory issues):
+To strictly reproduce the paper's multi-seed evaluation, ensure your data is located in the standard paths (`data/goes/`, `data/omni/`).
+
+**One-command evaluation:** To evaluate pre-trained checkpoints and automatically compute all final tables and metrics reported in the manuscript, run:
+```bash
+python 03_ieee_eval.py
+```
+
+**Training from scratch:** Alternatively, to retrain all models from scratch across the three reported seeds `{42, 43, 44}`, execute these scripts sequentially (run one script per session to avoid memory issues):
 ```bash
 python 01_train_main.py
 python 02_train_ablations_baselines.py
-python 03_ieee_eval.py
 ```
 
 ### 3. Run the Interactive Dashboard
