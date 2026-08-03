@@ -11,7 +11,7 @@ STORM-PhysNet is a domain-aware deep learning framework for forecasting high-ene
 
 ## 🛰️ Architecture Overview
 
-The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 14</sup> represent the multivariate solar wind input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window. Total input features = 14 (solar wind) + 1 (flux) = **15**, matching the GOES–OMNI pipeline; GRASP may expose 14 after alignment.
+The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 16</sup> represent the multivariate solar wind and geomagnetic input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window. Total input features = 16 (solar wind/geomag channels) + 1 (flux) = **17**, matching the operational dataloader.
 
 ![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
 
@@ -25,7 +25,7 @@ The aligned solar wind features and the raw electron flux are concatenated and l
 During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF *B<sub>z</sub>* < 0), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the *B<sub>z</sub>* Physics Gate. Instead of a simple dense layer, the gate is computed from the recent history of the southward IMF driver: **u**<sub>B<sub>z</sub></sub> = [Mean(*B<sub>z,south</sub>*), Max(*B<sub>z,south</sub>*), *Δt<sub>B<sub>z</sub></sub>*]. A multi-layer perceptron (MLP) learns the gating activation *σ*<sub>raw</sub> = MLP(**u**<sub>B<sub>z</sub></sub>), yielding a final bounded scaling factor *g* = *g*<sub>min</sub> + (1 - *g*<sub>min</sub>)*σ*<sub>raw</sub> (with *g*<sub>min</sub> = 0.1). The hidden state is then amplified (**h**<sub>gated</sub> = *g* ⊙ **h**). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
 
 ### Multi-Horizon Forecasting Heads
-Finally, the physics-gated representation **h**<sub>gated</sub> is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux *Ŷ* at the critical 45-minute (short-term), 6-hour (operational), and 12-hour (long-term) horizons simultaneously. The network explicitly outputs a deterministic prediction via a residual skip connection from the persistence flux baseline (no uncertainty head).
+Finally, the physics-gated representation **h**<sub>gated</sub> is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux *Ŷ* at the critical 1-hour (short-term, often discussed as ~45-60 min operationally), 6-hour (operational), and 12-hour (long-term) horizons simultaneously. The network explicitly outputs a deterministic prediction via a residual skip connection from the persistence flux baseline (no uncertainty head).
 
 > **Note on Experimental Variants:** This repository includes code for several experimental alternative gating mechanisms (e.g., Cathode, Radiotrophic). These are modular variants that share the identical delay and Transformer backbone as the primary model. **STORM-BzGate** remains the primary, highest-performing architecture evaluated in the main study.
 
@@ -87,23 +87,21 @@ STORM-PhysNet/
 *All figures and tables generated during the rigorous multi-seed evaluation process on the 5-year GOES dataset can be found in the `interpretations/` directory.*
 
 ### Performance Summary (6-Hour Horizon)
-*Note: Storm periods are explicitly defined and evaluated using the pipeline's rigorous `storm_flag` masking (identifying active geomagnetic periods).*
-| Model Architecture | Seeds | PE (All) | PE (Storm) | PE (High Flux) | RMSE (All) |
-|-------------------|:---:|:---:|:---:|:---:|:---:|
-| **STORM-Bz (Ours)** | 3 | **0.669** ±0.030 | **0.674** ±0.017 | **0.745** | **0.251** |
-| STORM-NoDelay (Ablation) | 3 | 0.672 ±0.022 | 0.643 ±0.015 | 0.717 | 0.250 |
-| STORM-NoPhysics (Ablation) | 3 | 0.677 ±0.019 | 0.651 ±0.029 | 0.719 | 0.248 |
-| Transformer (Baseline) | 3 | 0.648 ±0.031 | 0.612 ±0.042 | 0.717 | 0.259 |
-| LSTM (Baseline) | 1 | 0.614 | 0.634 | 0.792 | 0.271 |
-| MLP (Baseline) | 1 | 0.525 | 0.541 | 0.666 | 0.301 |
+*Note: Evaluated strictly over 5 independent seeds {42, 43, 44, 45, 46} with results compiled in `final_metrics_table.csv`.*
+- **PE_all @6h:** STORM-BzGate ≈ Transformer ≈ **0.722** (tied)
+- **PE_storm @6h:** STORM-BzGate **0.803** ± 0.041 vs Transformer **0.767** ± 0.062 (paired *p* ≈ 0.37)
+- **Short horizon (1h):** STORM-BzGate is highly stable (**0.33** ± 0.05) vs Transformer which is often negative across seeds.
+- **Ablation (storm PE):** Full STORM-BzGate (**0.803**) > No-Delay (**0.792**) > No-Physics (**0.777**)
+- **Ensemble (5 seeds):** STORM-BzGate reaches storm PE ≈ **0.838**. (Coverage_90 ≈ 0.58 — note that the ensemble is not formally calibrated).
+- **Failed Baselines:** `phys_lstm` failed to converge under the current trainer and is not a reported baseline.
 
 ### 1. Multi-Horizon Reliability
-At the critical 45-minute horizon, standard Transformers are highly unstable across random seeds. STORM-PhysNet remains strictly reliable and outperforms baselines across all horizons.
+At the critical short horizon (1-hour), standard Transformers are highly unstable across random seeds and often degrade to negative PE. STORM-PhysNet remains positive and tightly clustered, serving as the primary operational argument for the physics-informed design.
 
 ![Multi-Horizon PE](interpretations/Figures/fig_horizon_pe.png)
 
 ### 2. Ablation & Physics Constraints
-Removing the Adaptive Delay costs **3.0 storm PE points**; removing the Physics Gate costs **2.3 storm PE points**.
+Removing the Adaptive Delay lowers the storm PE to **0.792**; removing the Physics Gate lowers it to **0.777** (compared to the full model's **0.803**). These modules act as stabilizers for active intervals rather than raw all-sample PE maximizers.
 
 ![Ablation Results](interpretations/Figures/fig_ablation_6h.png)
 
@@ -178,7 +176,7 @@ To strictly reproduce the paper's multi-seed evaluation, ensure your data is loc
 python 03_ieee_eval.py
 ```
 
-**Training from scratch:** Alternatively, to retrain all models from scratch across the three reported seeds `{42, 43, 44}`, execute these scripts sequentially (run one script per session to avoid memory issues):
+**Training from scratch:** Alternatively, to retrain all models from scratch across the five reported seeds `{42, 43, 44, 45, 46}`, execute these scripts sequentially (run one script per session to avoid memory issues):
 ```bash
 python 01_train_main.py
 python 02_train_ablations_baselines.py
