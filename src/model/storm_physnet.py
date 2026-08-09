@@ -155,6 +155,15 @@ class STORMPhysNet(nn.Module):
                 dropout=dropout,
             )
             self.transformer = None
+        elif backbone == "lstm":
+            self.lstm = nn.LSTM(
+                input_size=d_model,
+                hidden_size=d_model,
+                num_layers=n_transformer_layers,
+                batch_first=True,
+                dropout=dropout if n_transformer_layers > 1 else 0.0,
+            )
+            self.transformer = None
         else:
             encoder_layer = nn.TransformerEncoderLayer(
                 d_model=d_model,
@@ -298,8 +307,11 @@ class STORMPhysNet(nn.Module):
             x = x + self.pos_emb[:, :x.size(1), :]
             x = self.emb_dropout(x)
 
-            # ── 3. Temporal Transformer Encoding ─────────────────────────────
-            x = self.transformer(x)                               # [B, T, d_model]
+            # ── 3. Temporal Transformer/LSTM Encoding ─────────────────────────────
+            if hasattr(self, 'lstm') and self.lstm is not None:
+                x, _ = self.lstm(x)                                   # [B, T, d_model]
+            else:
+                x = self.transformer(x)                               # [B, T, d_model]
 
             # Take the representation at the final time step
             h = x[:, -1, :]                                       # [B, d_model]
@@ -319,7 +331,7 @@ class STORMPhysNet(nn.Module):
             h = h + self.mag_proj(mag_vec)           # [B, d_model] additive
 
         # ── 4. Bz Physics Gate (Optional / Ablatable) ────────────────────────
-        if self.ablation == "no_bz_gate":
+        if self.ablation in ("no_bz_gate", "no_gate"):
             gated_repr = h
             gate_values = torch.ones(h.size(0), 1, device=h.device)
         else:
@@ -331,6 +343,7 @@ class STORMPhysNet(nn.Module):
         outputs = self.heads(gated_repr, y_persist)
         outputs["tau"]         = tau
         outputs["gate_values"] = gate_values
+        outputs["gate"]        = gate_values
         outputs["delay_loss"]  = self.prop_delay.regularization_loss()
 
         # ── 7. Optional spectral-parameterization prediction (additive) ─────

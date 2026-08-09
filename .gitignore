@@ -1,7 +1,7 @@
 .tempmediaStorage/
 logs/
 plots/
-datasets/
+
 __pycache__/
 *.pt
 *.pth

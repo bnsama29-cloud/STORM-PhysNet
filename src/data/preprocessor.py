@@ -44,6 +44,7 @@ class Preprocessor:
         log_flux_max: float = 6.0,
         train_frac: float = 8 / 11,
         val_frac: float = 1 / 11,
+        year_split: dict = None,
     ):
         self.spike_sigma   = spike_sigma
         self.max_gap_hours = max_gap_hours
@@ -51,6 +52,7 @@ class Preprocessor:
         self.log_flux_max  = log_flux_max
         self.train_frac    = train_frac
         self.val_frac      = val_frac
+        self.year_split    = year_split
         self.scaler        = StandardScaler()
         self._fitted       = False
 
@@ -251,6 +253,15 @@ class Preprocessor:
     def _split(
         self, df: pd.DataFrame
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        if self.year_split is not None:
+            train_years = self.year_split["train_years"]
+            val_year = self.year_split["val_year"]
+            test_year = self.year_split["test_year"]
+            train = df[df.index.year.isin(train_years)].copy()
+            val = df[df.index.year == val_year].copy()
+            test = df[df.index.year == test_year].copy()
+            return train, val, test
+
         n      = len(df)
         n_tr   = int(n * self.train_frac)
         n_val  = int(n * self.val_frac)

@@ -1,217 +1,124 @@
-# 🚀 STORM-PhysNet: Physics-Informed Multi-Horizon Forecasting of Geostationary Relativistic Electron Flux
+# STORM-PhysNet
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-brightgreen.svg)](https://github.com/bnsama29-cloud/STORM-PhysNet)
+**Physics-Informed Multi-Horizon Forecasting of Geostationary Relativistic Electron Flux with Transfer to Indian Longitude**
 
-STORM-PhysNet is a domain-aware deep learning framework for forecasting high-energy electron flux (*E* > 2 MeV) at Geostationary Earth Orbit (GEO). By explicitly embedding space weather physics—such as solar wind propagation delays and geomagnetic storm triggers—into a state-of-the-art Transformer architecture, this model avoids the catastrophic instabilities seen in standard black-box architectures during high-impact operational horizons.
+This repository contains the official implementation of **STORM-PhysNet**, accompanying the papers:
 
----
+- Conference version (IEEE)
+- Extended version (IEEE Access)
 
-## 🛰️ Architecture Overview
+STORM-PhysNet is a Transformer-based model for multi-horizon forecasting of >2 MeV electron flux at geostationary orbit (GEO). It combines:
 
-The core architecture of STORM-PhysNet, illustrated in the figure below, is designed to enforce physical constraints on a deep temporal backbone. Let **X**<sub>sw</sub> ∈ ℝ<sup>*T* × 16</sup> represent the multivariate solar wind and geomagnetic input sequence and **X**<sub>flux</sub> ∈ ℝ<sup>*T* × 1</sup> represent the local electron flux persistence, where *T*=72 hours is the lookback window. Total input features = 16 (solar wind/geomag channels) + 1 (flux) = **17**, matching the operational dataloader.
+- A standard temporal Transformer encoder
+- A learnable L1\u2013Earth propagation delay module
+- A \(B_z\)-conditioned physics gate
+- Residual multi-horizon heads (45 min / 6 h / 12 h)
 
-![System Architecture Overview](interpretations/Figures/fig_system_architecture.png)
-
-### Adaptive Propagation Delay
-Because solar wind measurements are taken at the L1 Lagrange point, they must traverse a distance of approximately 1.5 million kilometers before impacting the Earth's magnetosphere. Rather than assuming a static scalar delay, we introduce an Adaptive Propagation Delay module. STORM-PhysNet predicts a per-window delay *τ* = *f<sub>θ</sub>*(**X**<sub>sw</sub>) from a short conditioning network on the upstream solar-wind channels, constrained to a physically plausible range [0.5, 1.5] hours. The input features are continuously shifted in the temporal domain using differentiable linear interpolation: **X̃**<sub>sw</sub>(*t*) = (1 - *α*)**X**<sub>sw</sub>(*t*) + *α***X**<sub>sw</sub>(*t* - 1), where *α* = *τ* - ⌊*τ*⌋. Across seeds and evaluation windows, predicted delays concentrate near ≈ 1.09 hours.
-
-### Temporal Encoding
-The aligned solar wind features and the raw electron flux are concatenated and linearly projected into a high-dimensional hidden space. Positional encodings **P**<sub>pos</sub> are added, yielding the initial token sequence **Z**<sup>(0)</sup> = [**X̃**<sub>sw</sub> || **X**<sub>flux</sub>]**W**<sub>in</sub> + **P**<sub>pos</sub>. A Multi-Head Attention (MHA) Transformer backbone extracts temporal dependencies across the 72-hour window, outputting the final fused hidden representation **h**. Notably, STORM-PhysNet achieves this with only **~343K parameters**, compared to **~845K parameters** for the baseline Transformer, proving that physics-informed constraints yield higher performance with a vastly smaller parameter footprint.
-
-### *B<sub>z</sub>* Physics Gate (Storm Trigger)
-During severe space weather events, characterized by a southward Interplanetary Magnetic Field (IMF *B<sub>z</sub>* < 0), magnetic reconnection occurs, injecting massive amounts of energetic particles into the inner magnetosphere. To model this, we propose the *B<sub>z</sub>* Physics Gate. Instead of a simple dense layer, the gate is computed from the recent history of the southward IMF driver: **u**<sub>B<sub>z</sub></sub> = [Mean(*B<sub>z,south</sub>*), Max(*B<sub>z,south</sub>*), *Δt<sub>B<sub>z</sub></sub>*]. A multi-layer perceptron (MLP) learns the gating activation *σ*<sub>raw</sub> = MLP(**u**<sub>B<sub>z</sub></sub>), yielding a final bounded scaling factor *g* = *g*<sub>min</sub> + (1 - *g*<sub>min</sub>)*σ*<sub>raw</sub> (with *g*<sub>min</sub> = 0.1). The hidden state is then amplified (**h**<sub>gated</sub> = *g* ⊙ **h**). This hard physical constraint ensures the model does not hallucinate storm-time dynamics during quiet geomagnetic periods.
-
-### Multi-Horizon Forecasting Heads
-Finally, the physics-gated representation **h**<sub>gated</sub> is fed into parallel Multi-Horizon Forecasting Heads. Shared dense layers branch out to predict the deterministic flux *Ŷ* at the critical 1-hour (short-term, often discussed as ~45-60 min operationally), 6-hour (operational), and 12-hour (long-term) horizons simultaneously. The network explicitly outputs a deterministic prediction via a residual skip connection from the persistence flux baseline (no uncertainty head).
-
-> **Note on Experimental Variants:** This repository includes code for several experimental alternative gating mechanisms (e.g., Cathode, Radiotrophic). These are modular variants that share the identical delay and Transformer backbone as the primary model. **STORM-BzGate** remains the primary, highest-performing architecture evaluated in the main study.
+The model is evaluated under a rigorous multi-seed protocol and includes zero-shot + fine-tuned transfer experiments to GSAT-19 GRASP (Indian longitude).
 
 ---
 
-## 📁 Repository Structure & File Descriptions
+## Key Results (Summary)
+
+| System                  | PE<sub>45min</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> | PE<sub>st,6h</sub> |
+|-------------------------|--------------------|-----------------|------------------|--------------------|
+| Transformer             | 0.977              | 0.904           | 0.859            | 0.821              |
+| STORM-Bz                | **0.986**          | 0.897           | 0.851            | 0.827              |
+| Ensemble (\u03b1*=0.3)       | 0.983              | **0.911**       | **0.870**        | 0.839              |
+| STORM bagged (15 seeds) | **0.988**          | 0.911           | 0.870            | **0.849**          |
+
+- Short-horizon gain is statistically significant (paired *p* = 0.002).
+- Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
+- Fine-tuning on GRASP raises 6 h PE from 0.449 \u2192 0.599 and 12 h PE from 0.182 \u2192 0.517.
+
+---
+
+## Repository Structure
 
 ```text
 STORM-PhysNet/
-│
-├── 01_train_main.py                # 🚀 Master pipeline script for multi-seed core models
-├── 02_train_ablations_baselines.py # Training script for ablation studies and classical baselines
-├── 03_ieee_eval.py                 # IEEE evaluation script to collect checkpoints and compute final tables
-├── run_training.py                 # Local entry point for model training sweeps
-├── requirements.txt                # Python package dependencies
-├── .gitignore                      # Git ignore configurations
-├── LICENSE                         # MIT License
-├── README.md                       # Repository documentation
-│
-├── src/                            # Core source code
-│   ├── data/                       # Data processing pipelines
-│   │   ├── cdf_reader.py           # NASA CDF format parser for GOES and OMNI datasets
-│   │   ├── dataloader.py           # PyTorch Dataset/DataLoader definitions and batching
-│   │   ├── preprocessor.py         # Sklearn-based feature scaling, imputation, and time-alignment
-│   │   ├── storm_augmentor.py      # Synthetic minority over-sampling for rare geomagnetic storm events
-│   │   └── synthetic_generator.py  # Generation of edge-case solar wind profiles for robustness testing
-│   │
-│   ├── model/                      # PyTorch Architectures
-│   │   ├── storm_physnet.py        # Main STORM-PhysNet class combining encoders and physics gates
-│   │   ├── baselines.py            # Reference models: Transformer, LSTM, CNN, MLP
-│   │   ├── propagation_delay.py    # Adaptive network for dynamically shifting L1 solar wind features
-│   │   ├── bz_gate.py              # Storm-trigger gating mechanism based on Southward IMF Bz
-│   │   ├── forecasting_heads.py    # Multi-horizon linear probes (45m, 6h, 12h)
-│   │   ├── itransformer_encoder.py # Inverted Transformer (iTransformer) backbone logic
-│   │   ├── ssm_encoder.py          # State-Space Model (Mamba) variant encoder
-│   │   ├── analogy_gates.py        # Alternative physics gating mechanisms (Cathode/Anode analogues)
-│   │   ├── cross_modal_attention.py# Cross-attention layers for multivariate time series
-│   │   ├── magnetopause_geometry.py# Geometric models of the magnetopause (Shue et al.)
-│   │   └── spectral_head.py        # Frequency-domain feature extraction heads
-│   │
-│   ├── training/                   # Optimization logic
-│   │   ├── trainer.py              # Primary training loop, early stopping, and validation logging
-│   │   ├── physics_loss.py         # Custom loss functions imposing monotonicity and physical bounds
-│   │   └── transfer_learning.py    # Fine-tuning logic for cross-satellite transfer (e.g. GRASP)
-│   │
-│   └── evaluation/                 
-│       └── metrics.py              # Prediction Efficiency (PE), RMSE, MAE, R², and significance testing
-│
-├── configs/                        # YAML configuration files for hyperparameters and sweeps
-├── dashboard/                      # Interactive Streamlit dashboard for real-time inference
-├── epoch_metrics/                  # Epoch-level training logs and metrics
-└── interpretations/                # Generated metrics, tables, JSON stats, and figures
+\u251c\u2500\u2500 configs/
+\u2502   \u2514\u2500\u2500 config.yaml
+\u251c\u2500\u2500 datasets/
+\u2502   \u251c\u2500\u2500 goes/
+\u2502   \u251c\u2500\u2500 omni/
+\u2502   \u2514\u2500\u2500 grasp/
+\u251c\u2500\u2500 src/
+\u2502   \u251c\u2500\u2500 data/
+\u2502   \u251c\u2500\u2500 model/
+\u2502   \u251c\u2500\u2500 training/
+\u2502   \u2514\u2500\u2500 evaluation/
+\u251c\u2500\u2500 notebooks/
+\u2502   \u2514\u2500\u2500 STORM_PhysNet_Colab.ipynb     \u2190 Master reproduction notebook
+\u251c\u2500\u2500 requirements.txt
+\u2514\u2500\u2500 README.md
 ```
 
 ---
 
-## 📊 Interpretations & Results
+## Quick Start (Google Colab \u2013 Recommended)
 
-*All figures and tables generated during the rigorous multi-seed evaluation process on the 5-year GOES dataset can be found in the `interpretations/` directory.*
+1. Open [`notebooks/STORM_PhysNet_Colab.ipynb`](notebooks/STORM_PhysNet_Colab.ipynb) in Google Colab.
+2. Set runtime to **T4 GPU**.
+3. Run all cells.
 
-### Performance Summary (6-Hour Horizon)
-*Note: Evaluated strictly over 5 independent seeds {42, 43, 44, 45, 46} with results compiled in `final_metrics_table.csv`.*
-- **PE_all @6h:** STORM-BzGate ≈ Transformer ≈ **0.722** (tied)
-- **PE_storm @6h:** STORM-BzGate **0.803** ± 0.041 vs Transformer **0.767** ± 0.062 (paired *p* ≈ 0.37)
-- **Short horizon (1h):** STORM-BzGate is highly stable (**0.33** ± 0.05) vs Transformer which is often negative across seeds.
-- **Ablation (storm PE):** Full STORM-BzGate (**0.803**) > No-Delay (**0.792**) > No-Physics (**0.777**)
-- **Ensemble (5 seeds):** STORM-BzGate reaches storm PE ≈ **0.838**. (Coverage_90 ≈ 0.58 — note that the ensemble is not formally calibrated).
-- **Failed Baselines:** `phys_lstm` failed to converge under the current trainer and is not a reported baseline.
+The notebook supports two modes:
 
-### 1. Multi-Horizon Reliability
-At the critical short horizon (1-hour), standard Transformers are highly unstable across random seeds and often degrade to negative PE. STORM-PhysNet remains positive and tightly clustered, serving as the primary operational argument for the physics-informed design.
-
-![Multi-Horizon PE](interpretations/Figures/fig_horizon_pe.png)
-
-### 2. Ablation & Physics Constraints
-Removing the Adaptive Delay lowers the storm PE to **0.792**; removing the Physics Gate lowers it to **0.777** (compared to the full model's **0.803**). These modules act as stabilizers for active intervals rather than raw all-sample PE maximizers.
-
-![Ablation Results](interpretations/Figures/fig_ablation_6h.png)
-
-The physics-informed networks successfully learn physical phenomena without direct supervision. The propagation delay network learns L1-to-Earth transit times centered precisely around **~1.09 hours**:
-
-![Propagation Delay Histogram](interpretations/Figures/fig_physics_tau_hist.png)
-
-The physics gate strictly activates during geomagnetic storm periods (Bz < 0 conditions), acting as an attention amplifier exactly when it matters most:
-
-![Gate Activation](interpretations/Figures/fig_physics_gate_storm_quiet.png)
-
-### 3. Feature Importance & Event Case Studies
-A massive permutation importance analysis (over 7,800 random feature shuffles) quantitatively confirms the model fundamentally relies on key solar wind drivers (like Bz and Flow Speed) over autoregressive persistence.
-
-![Permutation Feature Importance](interpretations/Figures/fig_feature_importance.png)
-
-During intense geomagnetic activity, the model tracks rapid flux enhancements successfully while maintaining tight bounds during quiet periods.
-
-![Event Case Studies](interpretations/Figures/fig_case_studies.png)
-
-### 4. Cross-Satellite Transfer (GRASP)
-Tested on 14 months of novel Indian **GSAT-19 (GRASP)** data. A frozen-encoder strategy tuning only **~73K parameters** recovers robust skill ($PE_{6h} = 0.564$), demonstrating high practical value for newly commissioned space weather missions with scarce data.
-
-![GRASP Transfer Learning](interpretations/Figures/fig_grasp_transfer.png)
-
-
-Residual diagnostics demonstrate that STORM-PhysNet produces a tighter, more zero-centered and Gaussian error distribution compared to the standard Transformer baseline.
-
-![Residual Diagnostics](interpretations/Figures/fig_residual_storm_bz.png)
+- `DEMO_MODE = True` \u2192 quick run (few epochs) for testing
+- `DEMO_MODE = False` \u2192 full paper-level training
 
 ---
 
-## 💻 Real-Time Operational Dashboard
+## Data
 
-STORM-PhysNet includes a fully interactive Streamlit dashboard designed for operational space weather monitoring. It visualizes the model's response to dynamic solar wind drivers in real-time.
+The papers use the following public datasets, **which are included directly in this repository** under the `datasets/` folder for immediate reproducibility:
 
-### Nominal Space Weather (Quiet Baseline)
-During typical conditions (*B<sub>z</sub>* ≈ -2 nT, Solar Wind ≈ 400 km/s), the *B<sub>z</sub>* Physics Gate remains closed. The model produces stable, low-variance forecasts without false alarms.
-<p align="center">
-  <img src="interpretations/Figures/fig_dashboard_quiet_flux.png" width="100%">
-  <br><br>
-  <img src="interpretations/Figures/fig_dashboard_quiet_solarwind.png" width="100%">
-</p>
-
-### Extreme Geomagnetic Storm Trigger
-When a simulated Coronal Mass Ejection (CME) impacts (*B<sub>z</sub>* < -10 nT, Solar Wind > 800 km/s, elevated proton density), the dashboard immediately reflects the physics logic:
-- The **STORM ACTIVE** badge triggers.
-- The ***B<sub>z</sub>* Physics Gate** activation spikes to > 90%, dynamically altering the internal feature representation.
-- The **Multi-Horizon Forecasting Heads** project massive flux enhancements (uncertainty bounds shown are exploratory and uncalibrated).
-<p align="center">
-  <img src="interpretations/Figures/fig_dashboard_storm_flux.png" width="100%">
-  <br><br>
-  <img src="interpretations/Figures/fig_dashboard_storm_solarwind.png" width="100%">
-</p>
+| Dataset       | Source                                      | Notes                              | Location in Repo |
+|---------------|---------------------------------------------|------------------------------------|------------------|
+| GOES-15       | [NOAA NCEI](https://www.ngdc.noaa.gov/stp/satellite/goes/) | >2 MeV electron flux (2012\u20132016) | `datasets/goes/` |
+| OMNI          | [NASA OMNIWeb](https://omniweb.gsfc.nasa.gov/) | Solar wind + IMF                 | `datasets/omni/` |
+| GSAT-19 GRASP | [ISSDC](https://www.issdc.gov.in/)          | Indian-longitude GEO measurements | `datasets/grasp/` |
 
 ---
 
-## 🚀 Quick Start
+## Reproducibility Protocol (as used in the papers)
 
-### 1. Install Dependencies
-```bash
-git clone https://github.com/bnsama29-cloud/STORM-PhysNet.git
-cd STORM-PhysNet
-pip install -r requirements.txt
-```
-
-### 2. Reproducibility & Evaluation Pipeline
-To strictly reproduce the paper's multi-seed evaluation, ensure your data is located in the standard paths (`data/goes/`, `data/omni/`).
-
-**One-command evaluation:** To evaluate pre-trained checkpoints and automatically compute all final tables and metrics reported in the manuscript, run:
-```bash
-python 03_ieee_eval.py
-```
-
-**Training from scratch:** Alternatively, to retrain all models from scratch across the five reported seeds `{42, 43, 44, 45, 46}`, execute these scripts sequentially (run one script per session to avoid memory issues):
-```bash
-python 01_train_main.py
-python 02_train_ablations_baselines.py
-```
-
-### 3. Run the Interactive Dashboard
-Launch the Streamlit app for real-time visualization of the trained models:
-```bash
-streamlit run dashboard/app.py
-```
+- **Split**: Purely chronological 70 / 15 / 15 % (no shuffling)
+- **Seeds**: 15 independent random initializations (seeds 42\u201356)
+- **Metrics**: PE<sub>clim</sub> (primary) and PE<sub>pers</sub>
+- **Baselines**: Depth-matched Transformer + LSTM
+- **Ablations**: No-Delay, No-Gate, No-Physics, horizon-restricted physics loss
+- Test PE is computed **once** after training and never used for model selection
 
 ---
 
-## 🤝 Contribution Guidelines
-We welcome contributions from the space weather and machine learning communities! 
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+## Citation
 
----
+If you use this code or the results, please cite:
 
-## 📝 Citation
-If you find this code or our pre-trained models useful in your research, please consider citing:
 ```bibtex
-@article{bn2026storm,
-  title={STORM-PhysNet: Storm-aware Physics-Informed Network for GEO Electron Flux Forecasting},
-  author={BN, Samarth},
-  journal={IEEE Access},
-  year={2026}
+@article{samarth2026storm,
+  title   = {STORM-PhysNet: A Multi-Horizon Transformer for Geostationary Relativistic Electron Flux Forecasting with Interpretable Physics-Inspired Modules and Cross-Satellite Transfer},
+  author  = {Samarth BN},
+  journal = {IEEE Access},
+  year    = {2026},
+  note    = {Under review}
 }
 ```
 
+(Also cite the conference version once it is published.)
+
 ---
 
-**Author:** Samarth BN (RV College of Engineering)  
-**Acknowledgment:** The authors gratefully acknowledge the providers of GOES, OMNI, and GSAT-19 (GRASP) data products.
+## License
+
+This code is released for academic and research use.  
+Please contact the author for commercial use.
+
+---
+
+## Contact
+
+**Samarth BN**  
+RV College of Engineering, Bengaluru, India  
+Email: samarthbn.ec25@rvce.edu.in

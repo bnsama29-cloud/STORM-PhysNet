@@ -42,9 +42,10 @@ model:
     dropout: 0.1
     n_heads: 4
     n_layers: 2
+  layers: 3
 training:
   batch_size: 64
-  checkpoint_dir: /kaggle/working/checkpoints
+  checkpoint_dir: checkpoints\transformer_matched\seed_42
   early_stopping_patience: 12
   epochs: 40
   gradient_clip: 1.0

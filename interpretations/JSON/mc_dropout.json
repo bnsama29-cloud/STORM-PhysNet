@@ -1,7 +1,0 @@
-{
-  "model": "storm_bz",
-  "seed": 42,
-  "mc_passes": 15,
-  "coverage_90_approx": 0.47653177724216667,
-  "mean_pred_std_6h": 0.06978745758533478
-}

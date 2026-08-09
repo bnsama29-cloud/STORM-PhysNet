@@ -18,6 +18,7 @@ from tqdm import tqdm
 from src.model.storm_physnet import STORMPhysNet, STORMPhysNetEnsemble
 from src.model.baselines import StandardLSTM, VanillaTransformer, StandardMLP, StandardCNN
 from src.training.physics_loss import PhysicsInformedLoss, LossWeights
+from src.training.horizon_physics_loss import HorizonConditionedPhysicsLoss
 from src.data.dataloader import make_dataloaders
 
 
@@ -133,17 +134,24 @@ class Trainer:
         """Train one model instance."""
         tr     = self.cfg["training"]
         lw     = self.cfg["loss"]
+        # Horizon weights from config
+        hw = tr.get("horizon_weights", [1.0, 0.7, 0.5])
+        phs = lw.get("physics_horizon_scale", [1.0, 0.0, 0.0])
         # Base loss weights — physics terms start at 0 and ramp up (PINN warmup)
         ablation = self.cfg.get("ablation", "none")
         if ablation == "no_physics" or self.cfg.get("model_type", "storm_physnet") != "storm_physnet":
             print("[Trainer] Physics loss disabled for this run")
             base_weights = LossWeights(
+                horizon_weights=hw,
+                physics_horizon_scale=phs,
                 lambda_dst=0, lambda_kp=0, lambda_storm_cls=0,
                 lambda_mono=0, lambda_bz=0, lambda_smooth=0, lambda_delay=0,
                 lambda_var=0, lambda_epsilon=0
             )
         else:
             base_weights = LossWeights(
+                horizon_weights=hw,
+                physics_horizon_scale=phs,
                 lambda_dst       = 0.05,                        # Dst auxiliary task
                 lambda_kp        = 0.05,                        # Kp auxiliary task
                 lambda_storm_cls = 0.10,                        # storm classification
@@ -154,9 +162,20 @@ class Trainer:
                 lambda_var       = 0.02,                        # uncertainty calibration
                 lambda_epsilon   = lw.get("lambda_epsilon", 0.08),  # Akasofu epsilon coupling
             )
-        loss_fn = PhysicsInformedLoss(base_weights).to(self.device)
+        print(f"[Trainer] horizon_weights={hw} physics_horizon_scale={phs}")
+        physics_loss_fn = PhysicsInformedLoss(base_weights).to(self.device)
         physics_ramp_start = tr["warmup_epochs"]            # epoch when physics turns on
         physics_ramp_end   = tr["warmup_epochs"] + 10      # full weight after 10 more epochs
+
+        # Store original physics lambda values for proper warmup scaling
+        original_physics_lambdas = {
+            "lambda_mono": physics_loss_fn.w.lambda_mono,
+            "lambda_bz": physics_loss_fn.w.lambda_bz,
+            "lambda_smooth": physics_loss_fn.w.lambda_smooth,
+            "lambda_delay": physics_loss_fn.w.lambda_delay,
+            "lambda_var": physics_loss_fn.w.lambda_var,
+            "lambda_epsilon": physics_loss_fn.w.lambda_epsilon,
+        }
 
         # Separate parameter groups
         delay_params = [p for n, p in model.named_parameters() if "prop_delay" in n or "tau_logit" in n]
@@ -191,11 +210,10 @@ class Trainer:
                 phys_scale = (epoch - physics_ramp_start) / (physics_ramp_end - physics_ramp_start)
             else:
                 phys_scale = 1.0
-            loss_fn.w.lambda_mono   = base_weights.lambda_mono   * phys_scale
-            loss_fn.w.lambda_bz     = base_weights.lambda_bz     * phys_scale
-            loss_fn.w.lambda_smooth = base_weights.lambda_smooth  * phys_scale
-            loss_fn.w.lambda_delay  = base_weights.lambda_delay   * phys_scale
-            loss_fn.w.lambda_epsilon = base_weights.lambda_epsilon * phys_scale
+            # Scale physics lambda weights during warmup (SET, not multiply)
+            for attr, orig_val in original_physics_lambdas.items():
+                if hasattr(physics_loss_fn.w, attr):
+                    setattr(physics_loss_fn.w, attr, orig_val * phys_scale)
 
             # ── Train ────────────────────────────────────────────────────────
             model.train()
@@ -209,7 +227,7 @@ class Trainer:
                     x_flux    = batch["x_flux"],
                     y_persist = batch["y_persist"],
                 )
-                loss, comps = loss_fn(outputs, batch, batch["x_sw"])
+                loss, comps = physics_loss_fn(outputs, batch, batch["x_sw"])
                 # Skip batches that produce NaN/Inf loss to prevent weight corruption
                 if torch.isnan(loss) or torch.isinf(loss):
                     print("NaN/Inf loss detected — skipping batch")
@@ -224,7 +242,7 @@ class Trainer:
                 scheduler.step()
 
             # ── Validate ─────────────────────────────────────────────────────
-            val_loss, val_mse = self._validate(model, val_loader, loss_fn)
+            val_loss, val_mse = self._validate(model, val_loader, physics_loss_fn)
             train_avg = np.mean(train_losses)
 
             # ── Log ──────────────────────────────────────────────────────────

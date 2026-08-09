@@ -29,6 +29,8 @@ class LossWeights:
     """Hyperparameters for the physics-informed loss."""
     # Horizon weights (short horizon should be most accurate)
     horizon_weights:  list = None  # [1.0, 0.7, 0.5] for [1h, 6h, 12h]
+    # NEW: scale physics constraints per horizon (Week 1: physics hurts 6h/12h)
+    physics_horizon_scale: list = None  # e.g. [1.0, 0.0, 0.0]
     # Auxiliary task weights
     lambda_dst:       float = 0.10
     lambda_kp:        float = 0.05
@@ -47,6 +49,9 @@ class LossWeights:
     def __post_init__(self):
         if self.horizon_weights is None:
             self.horizon_weights = [1.0, 0.7, 0.5]
+        if self.physics_horizon_scale is None:
+            # Default after Week 1: physics only on short head
+            self.physics_horizon_scale = [1.0, 0.0, 0.0]
 
 
 class PhysicsInformedLoss(nn.Module):
@@ -62,6 +67,8 @@ class PhysicsInformedLoss(nn.Module):
         self.w = weights or LossWeights()
         hw = torch.tensor(self.w.horizon_weights, dtype=torch.float32)
         self.register_buffer("horizon_weights", hw / hw.sum())
+        phs = torch.tensor(self.w.physics_horizon_scale, dtype=torch.float32)
+        self.register_buffer("physics_horizon_scale", phs)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Primary Loss
@@ -336,13 +343,27 @@ class PhysicsInformedLoss(nn.Module):
         L_storm = F.binary_cross_entropy_with_logits(
             torch.nan_to_num(storm_logits, 0.0), y_storm)
 
-        # ── Physics constraints (YOUR ORIGINAL IDEA) ─────────────────────────
-        L_mono   = self._monotonicity_loss(residuals, x_sw)
-        L_bz     = self._bz_response_loss(flux_pred, y_flux, x_sw, y_persist)
-        L_smooth = self._smooth_loss(flux_pred)
+        # ── Physics constraints (horizon-conditioned; Week 1 finding) ────────
+        # Per-horizon residual / error used so long-horizon heads are not pulled
+        # by mono/bz/eps terms that hurt 6h/12h PE.
+        H = flux_pred.size(1)
+        scale = self.physics_horizon_scale.to(flux_pred.device)
+        if scale.numel() < H:
+            pad = torch.zeros(H - scale.numel(), device=flux_pred.device)
+            scale = torch.cat([scale, pad], dim=0)
+        scale = scale[:H]  # [H]
+
+        # Mask residuals/preds so physics is dominated by short horizon when
+        # physics_horizon_scale = [1, 0, 0]
+        res_h = residuals * scale.view(1, -1)
+        L_mono   = self._monotonicity_loss(res_h, x_sw)
+        L_eps    = self._epsilon_coupling_loss(res_h, y_flux, y_persist, x_sw)
+        L_bz_raw = self._bz_response_loss(flux_pred, y_flux, x_sw, y_persist)
+        L_bz     = L_bz_raw * scale[0]          # only short-horizon physics weight
+        long_scale = scale[1:].mean() if H > 1 else scale[0]
+        L_smooth = self._smooth_loss(flux_pred) * long_scale
         L_var    = self._uncertainty_calibration_loss(log_var, sq_errors)
         L_delay  = delay_loss
-        L_eps    = self._epsilon_coupling_loss(residuals, y_flux, y_persist, x_sw)
 
         # ── Total ─────────────────────────────────────────────────────────────
         total = (L_primary
