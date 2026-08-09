@@ -10,7 +10,7 @@ This repository contains the official implementation of **STORM-PhysNet**, accom
 STORM-PhysNet is a Transformer-based model for multi-horizon forecasting of >2 MeV electron flux at geostationary orbit (GEO). It combines:
 
 - A standard temporal Transformer encoder
-- A learnable L1\u2013Earth propagation delay module
+- A learnable L1–Earth propagation delay module
 - A \(B_z\)-conditioned physics gate
 - Residual multi-horizon heads (45 min / 6 h / 12 h)
 
@@ -24,12 +24,12 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 |-------------------------|--------------------|-----------------|------------------|--------------------|
 | Transformer             | 0.977              | 0.904           | 0.859            | 0.821              |
 | STORM-Bz                | **0.986**          | 0.897           | 0.851            | 0.827              |
-| Ensemble (\u03b1*=0.3)       | 0.983              | **0.911**       | **0.870**        | 0.839              |
+| Ensemble (α*=0.3)       | 0.983              | **0.911**       | **0.870**        | 0.839              |
 | STORM bagged (15 seeds) | **0.988**          | 0.911           | 0.870            | **0.849**          |
 
 - Short-horizon gain is statistically significant (paired *p* = 0.002).
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
-- Fine-tuning on GRASP raises 6 h PE from 0.449 \u2192 0.599 and 12 h PE from 0.182 \u2192 0.517.
+- Fine-tuning on GRASP raises 6 h PE from 0.449 → 0.599 and 12 h PE from 0.182 → 0.517.
 
 ---
 
@@ -37,26 +37,26 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ```text
 STORM-PhysNet/
-\u251c\u2500\u2500 configs/
-\u2502   \u2514\u2500\u2500 config.yaml
-\u251c\u2500\u2500 datasets/
-\u2502   \u251c\u2500\u2500 goes/
-\u2502   \u251c\u2500\u2500 omni/
-\u2502   \u2514\u2500\u2500 grasp/
-\u251c\u2500\u2500 src/
-\u2502   \u251c\u2500\u2500 data/
-\u2502   \u251c\u2500\u2500 model/
-\u2502   \u251c\u2500\u2500 training/
-\u2502   \u2514\u2500\u2500 evaluation/
-\u251c\u2500\u2500 notebooks/
-\u2502   \u2514\u2500\u2500 STORM_PhysNet_Colab.ipynb     \u2190 Master reproduction notebook
-\u251c\u2500\u2500 requirements.txt
-\u2514\u2500\u2500 README.md
+├── configs/
+│   └── config.yaml
+├── datasets/
+│   ├── goes/
+│   ├── omni/
+│   └── grasp/
+├── src/
+│   ├── data/
+│   ├── model/
+│   ├── training/
+│   └── evaluation/
+├── notebooks/
+│   └── STORM_PhysNet_Colab.ipynb     ← Master reproduction notebook
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Quick Start (Google Colab \u2013 Recommended)
+## Quick Start (Google Colab – Recommended)
 
 1. Open [`notebooks/STORM_PhysNet_Colab.ipynb`](notebooks/STORM_PhysNet_Colab.ipynb) in Google Colab.
 2. Set runtime to **T4 GPU**.
@@ -64,8 +64,8 @@ STORM-PhysNet/
 
 The notebook supports two modes:
 
-- `DEMO_MODE = True` \u2192 quick run (few epochs) for testing
-- `DEMO_MODE = False` \u2192 full paper-level training
+- `DEMO_MODE = True` → quick run (few epochs) for testing
+- `DEMO_MODE = False` → full paper-level training
 
 ---
 
@@ -75,7 +75,7 @@ The papers use the following public datasets, **which are included directly in t
 
 | Dataset       | Source                                      | Notes                              | Location in Repo |
 |---------------|---------------------------------------------|------------------------------------|------------------|
-| GOES-15       | [NOAA NCEI](https://www.ngdc.noaa.gov/stp/satellite/goes/) | >2 MeV electron flux (2012\u20132016) | `datasets/goes/` |
+| GOES-15       | [NOAA NCEI](https://www.ngdc.noaa.gov/stp/satellite/goes/) | >2 MeV electron flux (2012–2016) | `datasets/goes/` |
 | OMNI          | [NASA OMNIWeb](https://omniweb.gsfc.nasa.gov/) | Solar wind + IMF                 | `datasets/omni/` |
 | GSAT-19 GRASP | [ISSDC](https://www.issdc.gov.in/)          | Indian-longitude GEO measurements | `datasets/grasp/` |
 
@@ -84,7 +84,7 @@ The papers use the following public datasets, **which are included directly in t
 ## Reproducibility Protocol (as used in the papers)
 
 - **Split**: Purely chronological 70 / 15 / 15 % (no shuffling)
-- **Seeds**: 15 independent random initializations (seeds 42\u201356)
+- **Seeds**: 15 independent random initializations (seeds 42–56)
 - **Metrics**: PE<sub>clim</sub> (primary) and PE<sub>pers</sub>
 - **Baselines**: Depth-matched Transformer + LSTM
 - **Ablations**: No-Delay, No-Gate, No-Physics, horizon-restricted physics loss
