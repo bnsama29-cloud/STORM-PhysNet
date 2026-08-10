@@ -87,7 +87,7 @@ The papers use the following public datasets, **which are included directly in t
 - **Seeds**: 15 independent random initializations (seeds 42–56)
 - **Metrics**: PE<sub>clim</sub> (primary) and PE<sub>pers</sub>
 - **Baselines**:
-  - Transformer (default hyperparameters: d_model=64, 3 layers, 4 heads) — not matched to STORM in width or depth
+  - Transformer baseline (default hyperparameters: d_model=64, 3 layers, 4 heads) — not matched to STORM in width or depth
   - LSTM
 - **Ablations**: No-Delay, No-Gate, No-Physics, horizon-restricted physics loss
 - Test PE is computed **once** after training and never used for model selection
