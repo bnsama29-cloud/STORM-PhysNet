@@ -13,7 +13,7 @@ from typing import Optional
 from src.data.preprocessor import ALL_FEATURES, TARGET_COL
 
 # Forecast horizons in hours
-HORIZONS = [1, 6, 12]  # 45-min rounded to 1h; 6h; 12h
+HORIZONS = [0.75, 6, 12]  # 0.75h (45 min); 6h; 12h
 
 
 class FluxDataset(Dataset):
