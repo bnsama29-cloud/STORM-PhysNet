@@ -34,6 +34,7 @@ class MetricsResult:
     mae:      float = 0.0
     r2:       float = 0.0
     pe:       float = 0.0   # Prediction Efficiency = 1 - MSE/Var(y)
+    pe_pers:  float = 0.0   # Prediction Efficiency vs Persistence = 1 - MSE/MSE_pers
     bias:     float = 0.0   # mean(ŷ - y)
     corr:     float = 0.0   # Pearson correlation
 
@@ -54,7 +55,7 @@ class MetricsResult:
 
     def __str__(self) -> str:
         return (f"[{self.period:10s}] "
-                f"RMSE={self.rmse:.4f} | PE={self.pe:.4f} | "
+                f"RMSE={self.rmse:.4f} | PE={self.pe:.4f} | PE_pers={self.pe_pers:.4f} | "
                 f"R²={self.r2:.4f} | HSS={self.hss:.4f} | "
                 f"POD={self.pod:.4f} | FAR={self.far:.4f} | "
                 f"N={self.n_total:,}")
@@ -69,6 +70,15 @@ def prediction_efficiency(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     mse = np.mean((y_true - y_pred) ** 2)
     var = np.var(y_true)
     return float(1.0 - mse / (var + 1e-10))
+
+def prediction_efficiency_pers(y_true: np.ndarray, y_pred: np.ndarray, y_pers: np.ndarray) -> float:
+    """
+    PE_pers = 1 - MSE(y, ŷ) / MSE(y, y_pers)
+    PE_pers = 1.0 → perfect; PE_pers = 0.0 → same as persistence; PE_pers < 0 → worse than persistence.
+    """
+    mse_pred = np.mean((y_true - y_pred) ** 2)
+    mse_pers = np.mean((y_true - y_pers) ** 2)
+    return float(1.0 - mse_pred / (mse_pers + 1e-10))
 
 
 def heidke_skill_score(
@@ -120,6 +130,7 @@ def compute_metrics(
     storm_flags:   Optional[np.ndarray] = None,   # [N] 1=storm, 0=quiet
     kp:            Optional[np.ndarray] = None,    # [N] Kp values
     pred_std:      Optional[np.ndarray] = None,    # [N] prediction uncertainty
+    y_pers:        Optional[np.ndarray] = None,    # [N] persistence baseline
     flux_threshold: float = 4.0,
     period:        str = "all",
 ) -> MetricsResult:
@@ -128,11 +139,13 @@ def compute_metrics(
     y_t  = y_true[mask]
     y_p  = y_pred[mask]
     sf   = storm_flags[mask] if storm_flags is not None else np.zeros(len(y_t))
+    ypers = y_pers[mask] if y_pers is not None else None
 
     rmse = float(np.sqrt(np.mean((y_t - y_p)**2)))
     mae  = float(np.mean(np.abs(y_t - y_p)))
     bias = float(np.mean(y_p - y_t))
     pe   = prediction_efficiency(y_t, y_p)
+    pe_pers = prediction_efficiency_pers(y_t, y_p, ypers) if ypers is not None else 0.0
     r2   = float(np.corrcoef(y_t, y_p)[0, 1]**2) if len(y_t) > 1 else 0.0
     corr = float(stats.pearsonr(y_t, y_p)[0]) if len(y_t) > 1 else 0.0
 
@@ -148,7 +161,7 @@ def compute_metrics(
         mpiw  = float(np.mean(upper - lower))
 
     return MetricsResult(
-        rmse=rmse, mae=mae, r2=r2, pe=pe, bias=bias, corr=corr,
+        rmse=rmse, mae=mae, r2=r2, pe=pe, pe_pers=pe_pers, bias=bias, corr=corr,
         hss=hss, pod=pod, far=far, csi=csi,
         picp=picp, mpiw=mpiw,
         n_total=len(y_t), n_storm=int(sf.sum()),
@@ -181,6 +194,7 @@ class StormEvaluator:
         storm_flags: Optional[np.ndarray],
         pred_std:  Optional[np.ndarray] = None,
         horizon_names: list = ["1h", "6h", "12h"],
+        y_pers:    Optional[np.ndarray] = None,
     ) -> pd.DataFrame:
         """
         Evaluate across all periods and horizons.
@@ -198,9 +212,10 @@ class StormEvaluator:
             yt = y_true[:, h_idx]
             yp = y_pred[:, h_idx]
             ys = pred_std[:, h_idx] if pred_std is not None else None
+            ypr = y_pers[:, h_idx] if y_pers is not None else None
 
             # All periods
-            r = compute_metrics(yt, yp, storm_flags, kp, ys,
+            r = compute_metrics(yt, yp, storm_flags, kp, ys, ypr,
                                  self.flux_thr, "all")
             results.append({"horizon": h_name, **r.__dict__})
 
@@ -212,6 +227,7 @@ class StormEvaluator:
                                         storm_flags[quiet_mask] if storm_flags is not None else None,
                                         kp[quiet_mask],
                                         ys[quiet_mask] if ys is not None else None,
+                                        ypr[quiet_mask] if ypr is not None else None,
                                         self.flux_thr, "quiet (Kp<3)")
                     results.append({"horizon": h_name, **r.__dict__})
 
@@ -223,6 +239,7 @@ class StormEvaluator:
                                         storm_flags[storm_mask] if storm_flags is not None else None,
                                         kp[storm_mask],
                                         ys[storm_mask] if ys is not None else None,
+                                        ypr[storm_mask] if ypr is not None else None,
                                         self.flux_thr, "storm (Kp≥5)")
                     results.append({"horizon": h_name, **r.__dict__})
 
@@ -234,6 +251,7 @@ class StormEvaluator:
                                         storm_flags[intense_mask] if storm_flags is not None else None,
                                         kp[intense_mask],
                                         ys[intense_mask] if ys is not None else None,
+                                        ypr[intense_mask] if ypr is not None else None,
                                         self.flux_thr, "intense (Kp≥7)")
                     results.append({"horizon": h_name, **r.__dict__})
 
@@ -247,7 +265,7 @@ class StormEvaluator:
         print("="*90)
         for _, row in df.iterrows():
             print(f"Horizon: {row['horizon']:4s} | Period: {row['period']:20s} | "
-                  f"PE={row['pe']:.3f} | RMSE={row['rmse']:.3f} | "
+                  f"PE={row['pe']:.3f} | PE_pers={row['pe_pers']:.3f} | RMSE={row['rmse']:.3f} | "
                   f"R²={row['r2']:.3f} | HSS={row['hss']:.3f} | "
                   f"POD={row['pod']:.3f}")
         print("="*90)
