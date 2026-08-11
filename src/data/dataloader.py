@@ -13,7 +13,8 @@ from typing import Optional
 from src.data.preprocessor import ALL_FEATURES, TARGET_COL
 
 # Forecast horizons in hours
-HORIZONS = [1, 6, 12]  # 45-min rounded to 1h; 6h; 12h
+# Must match config.yaml forecast_horizons. The old [1,6,12] was overridden by config during training.
+HORIZONS = [0.75, 6.0, 12.0]
 
 
 class FluxDataset(Dataset):

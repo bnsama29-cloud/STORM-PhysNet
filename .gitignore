@@ -9,4 +9,4 @@ __pycache__/
 .venv/
 venv/
 *.zip
-ieee_paper/
+# ieee_paper/  # removed so papers and results can be tracked selectively
