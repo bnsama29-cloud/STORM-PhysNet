@@ -761,7 +761,18 @@ The controlled comparison supports a layered reading rather than a single
 ``winner'' architecture. At 45\,min, STORM improves reliability relative to a strong Transformer,
 especially against persistence. Controlled ablations that remove the delay, the physics loss, or the gate do not by themselves erase that short-horizon PE\(_{\mathrm{clim}}\) edge. We therefore treat the gain as a property of the full trained system rather than as proof that any single module is necessary.
 
-As detailed in Section~\ref{sec:results}, the ablations together indicate that the short-horizon gain is produced by the overall training protocol rather than by any single runtime module. The delay and gate act as structured inductive biases during training; once the model is trained, removing either module at inference does not erase the 45\,min PE\(_{\mathrm{clim}}\) edge over the Transformer. STORM-PhysNet should therefore be understood primarily as a carefully engineered training and multi-horizon recipe that includes interpretable physics-inspired components. To test whether the original upper bound of $1.5$\,h was limiting performance, we retrained STORM with wider delay constraints ($2.0$, $2.5$, $3.0$, $3.5$, and $4.0$\,h) across fifteen seeds. Mean PE$_{45\mathrm{min}}$ remained in the narrow range $0.9859$--$0.9862$ and PE$_{6\mathrm{h}}$ remained in the range $0.900$--$0.902$ for all bounds. The original $[0.5, 1.5]$\,h constraint is therefore not a performance bottleneck.
+As detailed in Section~\ref{sec:results}, the ablations together indicate that the short-horizon gain is produced by the overall training protocol rather than by any single runtime module. The delay and gate act as structured inductive biases during training; once the model is trained, removing either module at inference does not erase the 45\,min PE\(_{\mathrm{clim}}\) edge over the Transformer. STORM-PhysNet should therefore be understood primarily as a carefully engineered training and multi-horizon recipe that includes interpretable physics-inspired components. To test whether the original upper bound of $1.5$\,h was limiting performance, we retrained STORM with wider delay constraints ($2.0$, $2.5$, $3.0$, $3.5$, and $4.0$\,h) across fifteen seeds. Mean PE$_{45\mathrm{min}}$ remained in the narrow range $0.9859$--$0.9862$ and PE$_{6\mathrm{h}}$ remained in the range $0.900$--$0.902$ for all bounds (see Fig.~\ref{fig:wider_delay}). The original $[0.5, 1.5]$\,h constraint is therefore not a performance bottleneck.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.85\columnwidth]{figures/wider_delay_pe6h.png}
+\caption{Wider delay ablation: mean PE$_{6\mathrm{h}}$ versus delay upper bound
+(error bars show seed standard deviation). Vertical dashed lines mark the
+paper baselines STORM-Bz ($0.897$) and Transformer ($0.904$).
+PE$_{6\mathrm{h}}$ remains stable across upper bounds from $1.5$\,h to $4.0$\,h,
+confirming that the original $[0.5, 1.5]$\,h constraint is not a performance bottleneck.}
+\label{fig:wider_delay}
+\end{figure}
 
 A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. While bagging improves the Transformer, the gap relative to bagged STORM remains; the multi-horizon gain is therefore not purely architecture-specific.
 

@@ -46,14 +46,15 @@ The IEEE Access version includes two additional controlled experiments:
    A sixteen-seed bagged Transformer reached mean PE<sub>45min</sub> ≈ 0.978 and PE<sub>6h</sub> ≈ 0.895.  
    While bagging improves the Transformer, the gap relative to bagged STORM remains.
 
-Result files (CSV + figure) are available in the `results/` folder:
+Result summary (wider-delay ablation + bagged Transformer control) is in:
 
 ```text
-results/
-├── wider_delay_results.csv
-├── bagged_tf_results.csv
-└── wider_delay_pe6h.png
+results/summary.json
 ```
+
+Key findings:
+- Wider delay bounds (2.0–4.0 h): PE<sub>45min</sub> stayed in 0.9859–0.9862; PE<sub>6h</sub> stayed in 0.900–0.902.
+- Bagged Transformer (16 seeds): PE<sub>45min</sub> ≈ 0.978, PE<sub>6h</sub> ≈ 0.895.
 
 These experiments can also be reproduced from the master notebook (`notebooks/STORM_PhysNet_Colab.ipynb`).
 
@@ -70,9 +71,7 @@ STORM-PhysNet/
 │   ├── omni/
 │   └── grasp/
 ├── results/
-│   ├── wider_delay_results.csv
-│   ├── bagged_tf_results.csv
-│   └── wider_delay_pe6h.png
+│   └── summary.json
 ├── src/
 │   ├── data/
 │   ├── model/
