@@ -47,7 +47,6 @@ propagation delay, a \(B_z\)-conditioned physics gate, and residual
 heads for simultaneous 45-min, 6-hour, and 12-hour log-flux
 forecasts.
 
-On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$, the strongest multi-horizon results among the systems evaluated in this study. A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. While bagging improves the Transformer, the gap relative to bagged STORM remains; the multi-horizon gain is therefore not claimed to be purely architecture-specific. Controlled ablations show that the short-horizon gain is produced by the overall training protocol rather than by any single physics module at inference.
 
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
@@ -635,8 +634,6 @@ for both models; STORM does not eliminate storm-time residual variance, but
 it reduces the short-horizon bias relative to persistence discussed above.
 
 \subsection{Interpretability}
-Predicted delays are constrained to \([0.5, 1.5]\,\mathrm{h}\). Across the full test set the delay distribution shows a non-trivial fraction of windows concentrating near the upper bound (\(1.5\,\mathrm{h}\)), with the remainder spread across the interior of the constraint band. This saturation at the upper bound indicates the box constraint is active; we therefore treat the histogram as a constrained aggregate rather than evidence of an unconstrained recovered transit time, which limits the physical interpretability of the raw delay values. To test whether the original upper bound of $1.5$\,h was limiting performance, we retrained STORM with wider delay constraints ($2.0$, $2.5$, $3.0$, $3.5$, and $4.0$\,h) across fifteen seeds. Mean PE$_{45\mathrm{min}}$ remained in the narrow range $0.9859$--$0.9862$ and PE$_{6\mathrm{h}}$ remained in the range $0.900$--$0.902$ for all bounds. The original $[0.5, 1.5]$\,h constraint is therefore not a performance bottleneck. Gate activations differ between storm windows (\(\mathrm{Dst} \le -50\,\mathrm{nT}\)) and quiet windows (Mann--Whitney \(U = 8.82\times10^6\), \(p = 1.2\times10^{-14}\)). Absolute activations remain in a narrow band, so the storm-related shift is statistically clear but modest in magnitude.
-
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_physics_tau_hist.png}
@@ -813,7 +810,6 @@ window. Performance during solar maximum (Cycle 25, 2023--2025) is unknown and l
 validation split; the test-set \(\alpha\) curve is diagnostic only.
 We do not claim online \(\alpha\) adaptation. Horizon-restricted
 physics losses did not improve PE in our tests. The reported p-values are uncorrected for multiple comparisons across horizons and ablations; treat individual significance claims as descriptive rather than confirmatory.
-A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. While bagging improves the Transformer, the gap relative to bagged STORM remains; the multi-horizon gain is therefore not claimed to be purely architecture-specific.
 
 \section{Conclusion}
 \label{sec:conclusion}
