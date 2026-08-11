@@ -47,6 +47,7 @@ propagation delay, a \(B_z\)-conditioned physics gate, and residual
 heads for simultaneous 45-min, 6-hour, and 12-hour log-flux
 forecasts.
 
+On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$, the strongest multi-horizon results among the systems evaluated in this study. A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. While bagging improves the Transformer, the gap relative to bagged STORM remains; the multi-horizon gain is therefore not claimed to be purely architecture-specific. Controlled ablations show that the short-horizon gain is produced by the overall training protocol rather than by any single physics module at inference.
 
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at

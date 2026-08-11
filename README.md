@@ -33,6 +33,32 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ---
 
+## Extra Experiments (Access Paper)
+
+The IEEE Access version includes two additional controlled experiments:
+
+1. **Wider Delay Bound Ablation**  
+   STORM was retrained with delay upper bounds of 2.0, 2.5, 3.0, 3.5, and 4.0 h (fifteen seeds each).  
+   Mean PE<sub>45min</sub> stayed in the narrow range 0.9859–0.9862 and PE<sub>6h</sub> stayed in 0.900–0.902.  
+   The original [0.5, 1.5] h constraint is therefore not a performance bottleneck.
+
+2. **Bagged Transformer Control**  
+   A sixteen-seed bagged Transformer reached mean PE<sub>45min</sub> ≈ 0.978 and PE<sub>6h</sub> ≈ 0.895.  
+   While bagging improves the Transformer, the gap relative to bagged STORM remains.
+
+Result files (CSV + figure) are available in the `results/` folder:
+
+```text
+results/
+├── wider_delay_results.csv
+├── bagged_tf_results.csv
+└── wider_delay_pe6h.png
+```
+
+These experiments can also be reproduced from the master notebook (`notebooks/STORM_PhysNet_Colab.ipynb`).
+
+---
+
 ## Repository Structure
 
 ```text
@@ -43,6 +69,10 @@ STORM-PhysNet/
 │   ├── goes/
 │   ├── omni/
 │   └── grasp/
+├── results/
+│   ├── wider_delay_results.csv
+│   ├── bagged_tf_results.csv
+│   └── wider_delay_pe6h.png
 ├── src/
 │   ├── data/
 │   ├── model/
