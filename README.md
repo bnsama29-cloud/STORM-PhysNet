@@ -100,13 +100,12 @@ The notebook supports two modes:
 
 ## Data
 
-The papers use the following public datasets, **which are included directly in this repository** under the `datasets/` folder for immediate reproducibility:
+The papers use public datasets from NOAA NCEI (GOES-15), NASA OMNIWeb (OMNI), and ISSDC (GSAT-19 GRASP).
+Sample files are included under datasets/ for convenience. For full archives and redistribution terms, please use the official sources:
 
-| Dataset       | Source                                      | Notes                              | Location in Repo |
-|---------------|---------------------------------------------|------------------------------------|------------------|
-| GOES-15       | [NOAA NCEI](https://www.ngdc.noaa.gov/stp/satellite/goes/) | >2 MeV electron flux (2012–2016) | `datasets/goes/` |
-| OMNI          | [NASA OMNIWeb](https://omniweb.gsfc.nasa.gov/) | Solar wind + IMF                 | `datasets/omni/` |
-| GSAT-19 GRASP | [ISSDC](https://www.issdc.gov.in/)          | Indian-longitude GEO measurements | `datasets/grasp/` |
+- GOES-15: https://www.ngdc.noaa.gov/stp/satellite/goes/
+- OMNI: https://omniweb.gsfc.nasa.gov/
+- GRASP: https://www.issdc.gov.in/
 
 ---
 
@@ -129,7 +128,7 @@ If you use this code or the results, please cite:
 
 ```bibtex
 @article{samarth2026storm,
-  title   = {STORM-PhysNet: A Multi-Horizon Transformer for Geostationary Relativistic Electron Flux Forecasting with Interpretable Physics-Inspired Modules and Cross-Satellite Transfer},
+  title   = {STORM-PhysNet: A Multi-Horizon Transformer for Geostationary Relativistic Electron Flux Forecasting with Physics-Inspired Components and Cross-Satellite Transfer},
   author  = {Samarth BN},
   journal = {IEEE Access},
   year    = {2026},
@@ -143,8 +142,8 @@ If you use this code or the results, please cite:
 
 ## License
 
-This code is released for academic and research use.  
-Please contact the author for commercial use.
+Code is released under the MIT License for academic and research use.
+See the official data-provider terms for GOES, OMNI, and GRASP redistribution.
 
 ---
 
@@ -153,3 +152,4 @@ Please contact the author for commercial use.
 **Samarth BN**  
 RV College of Engineering, Bengaluru, India  
 Email: samarthbn.ec25@rvce.edu.in
+

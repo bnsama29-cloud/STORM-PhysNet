@@ -1,9 +1,14 @@
-torch>=2.0.0
-numpy
-PyYAML
-pandas
-scipy
-scikit-learn
-tqdm
-streamlit
-plotly
+# Core dependencies
+torch>=2.0.0,<3
+numpy>=1.24,<2
+pandas>=2.0
+scipy>=1.10
+scikit-learn>=1.3
+pyyaml>=6.0
+tqdm>=4.65
+matplotlib>=3.7
+cdflib>=0.4
+
+# Optional: for local demo dashboard (not required for paper reproduction)
+# streamlit>=1.25
+# plotly>=5.15
