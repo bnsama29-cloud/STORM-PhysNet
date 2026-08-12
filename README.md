@@ -20,12 +20,12 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ## Key Results (Summary)
 
-| System                  | PE<sub>45min</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> | PE<sub>st,6h</sub> |
+| System | PE<sub>45min</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> | PE<sub>st,6h</sub> |
 |-------------------------|--------------------|-----------------|------------------|--------------------|
-| Transformer             | 0.977              | 0.904           | 0.859            | 0.821              |
-| STORM-Bz                | **0.986**          | 0.897           | 0.851            | 0.827              |
-| Ensemble (α*=0.3)       | 0.983              | **0.911**       | **0.870**        | 0.839              |
-| STORM bagged (15 seeds) | **0.988**          | 0.911           | 0.870            | **0.849**          |
+| Transformer | 0.977 | 0.904 | 0.859 | 0.821 |
+| STORM-Bz | **0.986** | 0.897 | 0.851 | 0.827 |
+| Ensemble (α*=0.3) | 0.983 | **0.911** | **0.870** | 0.839 |
+| STORM bagged (15 seeds) | **0.988** | 0.911 | 0.870 | **0.849** |
 
 - Short-horizon gain is statistically significant (paired *p* = 0.002).
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
@@ -52,10 +52,6 @@ Result summary (wider-delay ablation + bagged Transformer control) is in:
 results/summary.json
 ```
 
-Key findings:
-- Wider delay bounds (2.0–4.0 h): PE<sub>45min</sub> stayed in 0.9859–0.9862; PE<sub>6h</sub> stayed in 0.900–0.902.
-- Bagged Transformer (16 seeds): PE<sub>45min</sub> ≈ 0.978, PE<sub>6h</sub> ≈ 0.895.
-
 These experiments can also be reproduced from the master notebook (`notebooks/STORM_PhysNet_Colab.ipynb`).
 
 ---
@@ -65,53 +61,60 @@ These experiments can also be reproduced from the master notebook (`notebooks/ST
 ```text
 STORM-PhysNet/
 ├── configs/
-│   └── config.yaml              # Model, data, training hyperparameters
-│                                # forecast_horizons: [0.75, 6.0, 12.0]
+│   └── config.yaml                 # Model, data, training hyperparameters
+│                                   # forecast_horizons: [0.75, 6.0, 12.0]
 │
 ├── datasets/
-│   ├── goes/                    # GOES-15 EPEAD >2 MeV electron flux (CDF)
-│   │   └── goes15_epead-*.cdf   # ~51 MB CDAWeb science file
-│   ├── omni/                    # OMNI solar-wind + geomagnetic indices
-│   │   ├── omni2.lst            # Hourly OMNI-2 time series
-│   │   └── omni2.fmt            # Format description
-│   └── grasp/                   # GSAT-19 GRASP 5-min averages (text)
+│   ├── goes/                       # GOES-15 EPEAD >2 MeV electron flux (CDF)
+│   │   └── goes15_epead-*.cdf      # ~51 MB CDAWeb science file
+│   ├── omni/                       # OMNI solar-wind + geomagnetic indices
+│   │   ├── omni2.lst               # Hourly OMNI-2 time series
+│   │   └── omni2.fmt               # Format description
+│   └── grasp/                      # GSAT-19 GRASP 5-min averages (text)
 │       └── grasp_5_min_avg_*.txt
 │
 ├── results/
-│   ├── summary.json             # Curated PE summary (matches the papers)
-│   ├── all_results.csv          # Seed-level evaluation outputs
-│   ├── wider_delay_results.csv  # Wider delay-bound ablation (15/16 seeds)
-│   ├── bagged_tf_results.csv    # Bagged Transformer control (16 seeds)
-│   ├── ablation_final_table.csv # Ablation summary table
-│   ├── wider_delay_pe6h.png     # Figure used in the Access paper
-│   └── README.md                # What each file is / what is not released
+│   ├── summary.json                # Curated PE summary (matches the papers)
+│   ├── all_results.csv             # Seed-level evaluation outputs
+│   ├── wider_delay_results.csv     # Wider delay-bound ablation (15/16 seeds)
+│   ├── bagged_tf_results.csv       # Bagged Transformer control (16 seeds)
+│   ├── ablation_final_table.csv    # Ablation summary table
+│   ├── wider_delay_pe6h.png        # Figure used in the Access paper
+│   └── README.md                   # What each file is / what is not released
 │
 ├── src/
 │   ├── data/
-│   │   ├── cdf_reader.py        # GOES CDF + OMNI readers (paper pipeline)
-│   │   ├── preprocessor.py      # Feature build, chronological splits
-│   │   ├── dataloader.py        # Windows, horizons [0.75, 6, 12], storm sampler
+│   │   ├── cdf_reader.py           # GOES CDF + OMNI readers (paper pipeline)
+│   │   ├── preprocessor.py         # Feature build, chronological splits
+│   │   ├── dataloader.py           # Windows, horizons [0.75, 6, 12], storm sampler
 │   │   ├── synthetic_generator.py  # DEV ONLY — not used in paper runs
 │   │   └── storm_augmentor.py      # DEV ONLY — not used in paper runs
 │   ├── model/
-│   │   ├── storm_physnet.py     # STORM-PhysNet (delay + Bz gate + heads)
-│   │   ├── baselines.py         # VanillaTransformer, LSTM, MLP, CNN
+│   │   ├── storm_physnet.py        # STORM-PhysNet (delay + Bz gate + heads)
+│   │   ├── baselines.py            # VanillaTransformer, LSTM, MLP, CNN
 │   │   ├── propagation_delay.py
 │   │   ├── bz_gate.py
 │   │   └── forecasting_heads.py
 │   ├── training/
-│   │   ├── trainer.py           # Main training loop (Adam, early stop, seeds)
+│   │   ├── trainer.py              # Main training loop (Adam, early stop, seeds)
 │   │   ├── physics_loss.py
 │   │   ├── horizon_physics_loss.py
-│   │   └── transfer_learning.py # GRASP fine-tune helpers
+│   │   └── transfer_learning.py    # GRASP fine-tune helpers
 │   └── evaluation/
-│       └── metrics.py           # PE_clim, PE_pers, RMSE helpers
+│       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
 │
 ├── notebooks/
 │   └── STORM_PhysNet_Colab.ipynb   # Master reproduction scaffold
 │
 ├── requirements.txt
 └── README.md
+```
+
+**Notes**
+
+- Paper experiments load **real** GOES / OMNI / GRASP files under `datasets/`.
+- `synthetic_generator.py` and `storm_augmentor.py` are **not** imported by `Trainer` or the notebook pipeline.
+- Full `.pt` checkpoints are **not** stored here (size). Seed-level CSVs under `results/` support the reported tables.
 
 ---
 
@@ -131,7 +134,8 @@ The notebook supports two modes:
 ## Data
 
 The papers use public datasets from NOAA NCEI (GOES-15), NASA OMNIWeb (OMNI), and ISSDC (GSAT-19 GRASP).
-Sample files are included under datasets/ for convenience. For full archives and redistribution terms, please use the official sources:
+
+Sample files are included under `datasets/` for convenience. For full archives and redistribution terms, please use the official sources:
 
 - GOES-15: https://www.ngdc.noaa.gov/stp/satellite/goes/
 - OMNI: https://omniweb.gsfc.nasa.gov/
@@ -151,12 +155,15 @@ Sample files are included under datasets/ for convenience. For full archives and
 - Test PE is computed **once** after training and never used for model selection
 
 ---
+
 ## Reproduction notes
 
 - The Colab notebook is a **scaffold**: set `DEMO_MODE = False` for full 15-seed runs (GPU-heavy).
 - Headline PE tables in the papers come from multi-account training; seed-level CSVs are in `results/`.
 - `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** capacity-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
+
+---
 
 ## Citation
 
@@ -178,7 +185,7 @@ If you use this code or the results, please cite:
 
 ## License
 
-Code is released under the MIT License for academic and research use.
+Code is released under the MIT License for academic and research use.  
 See the official data-provider terms for GOES, OMNI, and GRASP redistribution.
 
 ---
@@ -188,4 +195,4 @@ See the official data-provider terms for GOES, OMNI, and GRASP redistribution.
 **Samarth BN**  
 RV College of Engineering, Bengaluru, India  
 Email: samarthbn.ec25@rvce.edu.in
-
+```
