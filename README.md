@@ -65,23 +65,53 @@ These experiments can also be reproduced from the master notebook (`notebooks/ST
 ```text
 STORM-PhysNet/
 ├── configs/
-│   └── config.yaml
+│   └── config.yaml              # Model, data, training hyperparameters
+│                                # forecast_horizons: [0.75, 6.0, 12.0]
+│
 ├── datasets/
-│   ├── goes/
-│   ├── omni/
-│   └── grasp/
+│   ├── goes/                    # GOES-15 EPEAD >2 MeV electron flux (CDF)
+│   │   └── goes15_epead-*.cdf   # ~51 MB CDAWeb science file
+│   ├── omni/                    # OMNI solar-wind + geomagnetic indices
+│   │   ├── omni2.lst            # Hourly OMNI-2 time series
+│   │   └── omni2.fmt            # Format description
+│   └── grasp/                   # GSAT-19 GRASP 5-min averages (text)
+│       └── grasp_5_min_avg_*.txt
+│
 ├── results/
-│   └── summary.json
+│   ├── summary.json             # Curated PE summary (matches the papers)
+│   ├── all_results.csv          # Seed-level evaluation outputs
+│   ├── wider_delay_results.csv  # Wider delay-bound ablation (15/16 seeds)
+│   ├── bagged_tf_results.csv    # Bagged Transformer control (16 seeds)
+│   ├── ablation_final_table.csv # Ablation summary table
+│   ├── wider_delay_pe6h.png     # Figure used in the Access paper
+│   └── README.md                # What each file is / what is not released
+│
 ├── src/
 │   ├── data/
+│   │   ├── cdf_reader.py        # GOES CDF + OMNI readers (paper pipeline)
+│   │   ├── preprocessor.py      # Feature build, chronological splits
+│   │   ├── dataloader.py        # Windows, horizons [0.75, 6, 12], storm sampler
+│   │   ├── synthetic_generator.py  # DEV ONLY — not used in paper runs
+│   │   └── storm_augmentor.py      # DEV ONLY — not used in paper runs
 │   ├── model/
+│   │   ├── storm_physnet.py     # STORM-PhysNet (delay + Bz gate + heads)
+│   │   ├── baselines.py         # VanillaTransformer, LSTM, MLP, CNN
+│   │   ├── propagation_delay.py
+│   │   ├── bz_gate.py
+│   │   └── forecasting_heads.py
 │   ├── training/
+│   │   ├── trainer.py           # Main training loop (Adam, early stop, seeds)
+│   │   ├── physics_loss.py
+│   │   ├── horizon_physics_loss.py
+│   │   └── transfer_learning.py # GRASP fine-tune helpers
 │   └── evaluation/
+│       └── metrics.py           # PE_clim, PE_pers, RMSE helpers
+│
 ├── notebooks/
-│   └── STORM_PhysNet_Colab.ipynb     ← Master reproduction notebook
+│   └── STORM_PhysNet_Colab.ipynb   # Master reproduction scaffold
+│
 ├── requirements.txt
 └── README.md
-```
 
 ---
 
