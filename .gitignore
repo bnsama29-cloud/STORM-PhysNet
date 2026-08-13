@@ -9,6 +9,7 @@ __pycache__/
 venv/
 *.zip
 # ieee_paper/  # removed so papers and results can be tracked selectively
+ieee_paper/
 
 notebooks/NUL.ipynb
 notebooks/STORM-PhysNet/
