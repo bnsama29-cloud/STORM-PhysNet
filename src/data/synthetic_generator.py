@@ -4,6 +4,8 @@ Produces 11 years of realistic space weather data including storm events,
 using Burton-equation-driven Dst proxy for physically consistent storms.
 """
 
+# DEV/TESTING ONLY — not used for paper GOES/OMNI/GRASP tables (use_real_data: true).
+
 import numpy as np
 import pandas as pd
 from scipy import signal

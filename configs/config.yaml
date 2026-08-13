@@ -45,12 +45,12 @@ model:
   layers: 3
 training:
   batch_size: 64
-  checkpoint_dir: checkpoints\transformer\seed_42
+  checkpoint_dir: checkpoints
   early_stopping_patience: 12
   epochs: 40
   gradient_clip: 1.0
   learning_rate: 0.0003
-  log_dir: /kaggle/working/logs
+  log_dir: logs
   residual: true
   seed: 42
   storm_weight: 12.0
