@@ -3,10 +3,13 @@ logs/
 plots/
 
 __pycache__/
-*.pt
 *.pth
 .DS_Store
 .venv/
 venv/
 *.zip
 # ieee_paper/  # removed so papers and results can be tracked selectively
+
+notebooks/NUL.ipynb
+notebooks/STORM-PhysNet/
+
