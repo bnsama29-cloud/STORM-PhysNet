@@ -6,7 +6,7 @@ Layout: checkpoints/<model>/seed_<id>/*_best.pt
 
 Models and seed coverage:
 - storm_bz: 42–56 (15 seeds)
-- transformer: 42–46 (5 seeds; 47–56 not yet packaged)
+- transformer: 42–56 (15 seeds)
 - lstm: 42–56 (15 seeds)
 - storm_no_delay: 42–56 (15 seeds)
 - storm_no_gate: 42–56 (15 seeds)
