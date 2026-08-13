@@ -99,7 +99,7 @@ STORM-PhysNet/
 ├── checkpoints/
 │   ├── README.md
 │   ├── storm_bz/seed_42/ … seed_56/
-│   ├── transformer/seed_42/ … seed_56/
+│   ├── transformer/seed_42/ … seed_46/
 │   ├── lstm/seed_42/ … seed_56/
 │   ├── storm_no_delay/ …
 │   ├── storm_no_gate/ …
