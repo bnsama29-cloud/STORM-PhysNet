@@ -8,6 +8,8 @@ Novel contribution: physics-informed data augmentation for radiation belt ML.
 No published paper on GEO electron flux forecasting does this.
 """
 
+# DEV/TESTING ONLY — not used for paper GOES/OMNI/GRASP tables (use_real_data: true).
+
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass
