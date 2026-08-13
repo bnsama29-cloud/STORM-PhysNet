@@ -60,28 +60,11 @@ These experiments can also be reproduced from the master notebook (`notebooks/ST
 
 ```text
 STORM-PhysNet/
+├── README.md
+├── requirements.txt
 ├── configs/
 │   └── config.yaml                 # Model, data, training hyperparameters
 │                                   # forecast_horizons: [0.75, 6.0, 12.0]
-│
-├── datasets/
-│   ├── goes/                       # GOES-15 EPEAD >2 MeV electron flux (CDF)
-│   │   └── goes15_epead-*.cdf      # ~51 MB CDAWeb science file
-│   ├── omni/                       # OMNI solar-wind + geomagnetic indices
-│   │   ├── omni2.lst               # Hourly OMNI-2 time series
-│   │   └── omni2.fmt               # Format description
-│   └── grasp/                      # GSAT-19 GRASP 5-min averages (text)
-│       └── grasp_5_min_avg_*.txt
-│
-├── results/
-│   ├── summary.json                # Curated PE summary (matches the papers)
-│   ├── all_results.csv             # Seed-level evaluation outputs
-│   ├── wider_delay_results.csv     # Wider delay-bound ablation (15/16 seeds)
-│   ├── bagged_tf_results.csv       # Bagged Transformer control (16 seeds)
-│   ├── ablation_final_table.csv    # Ablation summary table
-│   ├── wider_delay_pe6h.png        # Figure used in the Access paper
-│   └── README.md                   # What each file is / what is not released
-│
 ├── src/
 │   ├── data/
 │   │   ├── cdf_reader.py           # GOES CDF + OMNI readers (paper pipeline)
@@ -102,19 +85,41 @@ STORM-PhysNet/
 │   │   └── transfer_learning.py    # GRASP fine-tune helpers
 │   └── evaluation/
 │       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
-│
 ├── notebooks/
-│   └── STORM_PhysNet_Colab.ipynb   # Master reproduction scaffold
-│
-├── requirements.txt
-└── README.md
+│   └── STORM_PhysNet_Colab.ipynb   # Master reproduction notebook
+├── figures/                         # ALL paper figures
+├── results/
+│   ├── summary.json
+│   ├── ablation_final_table.csv
+│   ├── all_results.csv
+│   ├── wider_delay_results.csv
+│   ├── bagged_tf_results.csv
+│   ├── grasp_metrics_summary.csv    # GRASP zero-shot / fine-tune
+│   └── README.md
+├── checkpoints/
+│   ├── README.md
+│   ├── storm_bz/seed_42/ … seed_56/
+│   ├── transformer/seed_42/ … seed_56/
+│   ├── lstm/seed_42/ … seed_56/
+│   ├── storm_no_delay/ …
+│   ├── storm_no_gate/ …
+│   ├── storm_no_physics/ …
+│   ├── bagged_tf/ …                 # if available
+│   ├── wider_delay_*/ …             # optional
+│   └── grasp/seed_42/ … seed_56/    # fine-tuned heads
+└── datasets/                        # only if you already ship them
+    ├── goes/
+    ├── omni/
+    └── grasp/
 ```
 
 **Notes**
 
 - Paper experiments load **real** GOES / OMNI / GRASP files under `datasets/`.
 - `synthetic_generator.py` and `storm_augmentor.py` are **not** imported by `Trainer` or the notebook pipeline.
-- Full `.pt` checkpoints are **not** stored here (size). Seed-level CSVs under `results/` support the reported tables.
+- Trained checkpoints for seeds 42–56 are provided under `checkpoints/`.
+- Result CSVs and curated PE summaries are under `results/`.
+- All paper figures are under `figures/`.
 
 ---
 
@@ -159,9 +164,10 @@ Sample files are included under `datasets/` for convenience. For full archives a
 ## Reproduction notes
 
 - The Colab notebook is a **scaffold**: set `DEMO_MODE = False` for full 15-seed runs (GPU-heavy).
-- Headline PE tables in the papers come from multi-account training; seed-level CSVs are in `results/`.
+- Headline PE tables in the papers come from multi-seed training; seed-level CSVs are in `results/`.
 - `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** capacity-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
+- Best checkpoints for all main models and seeds 42–56 are included under `checkpoints/`.
 
 ---
 
