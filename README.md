@@ -115,8 +115,10 @@ STORM-PhysNet/
 │   ├── transformer_matched_summary.json
 │   ├── transformer_matched_bagged_pe.json
 │   ├── transformer_matched_seed_pe.csv
-│   ├── extra_experiments/           # Robustness, GRASP, and Persistence CSVs
 │   ├── grasp_metrics_summary.csv    # GRASP zero-shot / fine-tuned
+│   ├── grasp_*.csv                  # GRASP logs
+│   ├── noise_*.csv                  # Noise robustness logs
+│   ├── pers_*.csv                   # Operational Persistence logs
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md

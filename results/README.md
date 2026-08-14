@@ -12,7 +12,9 @@
 | `ablation_final_table.csv` | Ablation summary |
 | `wider_delay_pe6h.png` | Access paper figure |
 | `grasp_metrics_summary.csv` | GRASP zero-shot / fine-tune results |
-| `extra_experiments/` | Contains all robustness (noise, pers) and domain adaptation CSVs |
+| `grasp_0.csv`, `grasp_1.csv` | GRASP fine-tuning training logs (Accounts 1 & 2) |
+| `noise_0.csv`, `noise_1.csv` | Noise robustness results (Accounts 1 & 2) |
+| `pers_0.csv`, `pers_1.csv` | Operational Persistence results (Accounts 1 & 2) |
 
 Checkpoints (`.pt`) are not released in this repository.  
 Code + `datasets/` + these CSVs are enough to verify the reported PE values.
