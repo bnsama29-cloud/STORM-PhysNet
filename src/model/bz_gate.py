@@ -1,5 +1,5 @@
 """
-Bz Physics Gate — YOUR ORIGINAL IDEA.
+Bz Physics Gate.
 
 A soft gating mechanism that amplifies the encoder's output when IMF Bz
 is strongly southward (indicating active magnetospheric driving).

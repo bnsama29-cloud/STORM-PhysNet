@@ -122,16 +122,9 @@ STORM-PhysNet/
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md
-│   ├── storm_bz/seed_42/ … seed_56/
-│   ├── transformer/seed_42/ … seed_56/
-│   ├── transformer_matched/seed_42/ … seed_56/
-│   ├── lstm/seed_42/ … seed_56/
-│   ├── storm_no_delay/ …
-│   ├── storm_no_gate/ …
-│   ├── storm_no_physics/ …
-│   ├── bagged_tf/ …                 # if available
-│   ├── wider_delay_*/ …             # optional
-│   └── grasp/seed_42/ … seed_56/    # fine-tuned heads
+│   └── (Note: Due to GitHub file size limits, large model checkpoints
+│      such as `storm_bz`, `transformer`, and ablations are hosted
+│      externally. See `checkpoints/README.md` for download links.)
 └── datasets/                        # only if you already ship them
     ├── goes/
     ├── omni/
@@ -143,7 +136,7 @@ STORM-PhysNet/
 - Paper experiments load **real** GOES / OMNI / GRASP files under `datasets/`.
 - Trained checkpoints for seeds 42–56 are provided under `checkpoints/`.
 - Result CSVs and curated PE summaries are under `results/`.
-- Supplementary extra experiments (Noise Robustness, Operational Persistence PE, GRASP fine-tuning) are located in `results/extra_experiments/` and are fully reproducible via the updated Colab notebook script.
+- Supplementary extra experiments (Noise Robustness, Operational Persistence PE, GRASP fine-tuning) are located in `results/` and are fully reproducible via the updated Colab notebook script.
 - All paper figures are under `figures/`.
 
 ---

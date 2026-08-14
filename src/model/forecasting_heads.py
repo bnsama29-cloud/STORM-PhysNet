@@ -1,7 +1,6 @@
 """
 Multi-Horizon Forecasting Heads with Physics Residual Prediction.
 
-YOUR ORIGINAL IDEA: Multi-horizon heads (30-45min, 6h, 12h).
 NEW: Physics residual prediction — model predicts CORRECTION over persistence.
 
 Physics residual formula:

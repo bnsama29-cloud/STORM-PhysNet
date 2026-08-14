@@ -219,7 +219,7 @@ class PhysicsInformedLoss(nn.Module):
         max_rate = max_rate.clamp(0.01, 2.0)                # [B]
 
         # Violation: predicted correction exceeds max rate per horizon
-        horizons = torch.tensor([1., 6., 12.], device=flux_residual.device)
+        horizons = torch.tensor([0.75, 6.0, 12.0], device=flux_residual.device)
         max_per_horizon = max_rate.unsqueeze(1) * horizons.unsqueeze(0)  # [B,H]
         violation = F.relu(flux_residual.abs() - max_per_horizon)
         return violation.mean()

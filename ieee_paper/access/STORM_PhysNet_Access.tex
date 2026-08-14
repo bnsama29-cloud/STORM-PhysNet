@@ -1,4 +1,4 @@
-﻿\documentclass{ieeeaccess}
+\documentclass{ieeeaccess}
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
@@ -48,7 +48,7 @@ propagation delay, a \(B_z\)-conditioned physics gate, and residual
 heads for simultaneous 45-min, 6-hour, and 12-hour log-flux
 forecasts.
 
-On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$, the strongest multi-horizon results among the systems evaluated in this study. A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. A capacity-matched Transformer control ($d_{\mathrm{model}}=128$, two layers, four heads) reached mean PE$_{45\mathrm{min}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across fifteen seeds; bagging those seeds yields $0.986$ / $0.919$ / $0.877$. While bagging improves the Transformer, the gap relative to bagged STORM shrinks under capacity matching; the multi-horizon gain is therefore not claimed to be purely architecture-specific. Controlled ablations show that the short-horizon gain is a property of the trained package as a whole rather than of any individual physics module at inference.
+On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$. A capacity-matched Transformer control ($d_{\mathrm{model}}=128$, two layers, four heads) reached mean PE$_{45\mathrm{min}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across fifteen seeds; bagging those seeds yields $0.986$ / $0.919$ / $0.877$, establishing the bagged capacity-matched Transformer as the strongest model at the 6\,h and 12\,h horizons. While STORM dominates the single-model 45-min forecast ($0.988$ bagged), capacity and bagging move multi-horizon PE more than the physics modules at inference. Controlled ablations show that the short-horizon gain is a property of the trained package as a whole rather than of any individual physics module at inference.
 
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
@@ -174,8 +174,7 @@ multi-seed protocol it showed higher variance across seeds than the standard
 temporal-attention Transformer, which was therefore retained for all reported
 experiments.
 
-Beyond GEO, Sinha et al.\ developed PreMevE~\cite{b25}; Kieokaew et
-al.~\cite{b26} combined supervised ML with a timeseries foundation model; Botek
+Beyond GEO, Sinha et al.\ developed PreMevE~\cite{b25}; Botek
 et al.~\cite{b27} applied neural networks at low Earth orbit; Wang et
 al.~\cite{b12} used LSTM with MagEIS observations.
 
@@ -400,12 +399,12 @@ design variants.
 We compare against Vanilla Transformer (same residual heads, no delay/gate), a
 Transformer baseline (default hyperparameters, not matched in width or depth to the STORM encoder), and LSTM. Training uses Adam~\cite{b29} with initial learning
 rate \(3\times10^{-4}\), cosine decay, batch size 64, and early stopping on
-validation PE. Primary STORM and Transformer runs use seeds \(\{42,\ldots,56\}\).
+12\,h validation MSE. Primary STORM and Transformer runs use seeds \(\{42,\ldots,56\}\).
 Transfer fine-tuning uses a lower learning rate for at most 50 epochs.
 
 All models share the same preprocessor, the same chronological windows, and the
 same storm-biased sampler during training so that rare active intervals are not
-ignored by the optimizer. Early stopping monitors validation PE rather than
+ignored by the optimizer. Early stopping monitors the 12\,h validation MSE rather than
 training loss, which reduces the chance that a model is selected solely for
 fitting quiet-time persistence. Checkpoints used in the tables are the best
 validation PE weights for each seed; test PE is computed once after training and
@@ -871,10 +870,7 @@ Alternative gates, a hybrid SSM backbone, magnetopause features, and a spectral 
 STORM-PhysNet is a reproducible multi-horizon baseline on GOES with a documented
 transfer path toward GSAT-19 GRASP. Relative to a strong Transformer, the
 clearest single-model gain is short-horizon reliability (including a large gap
-against persistence at 45\,min). The clearest multi-horizon gain among the systems evaluated here comes from a linear
-ensemble with validation-selected \(\alpha^*=0.3\) (test PE\(_{6\mathrm{h}}=0.911\))
-and from seed-bagged STORM, while a capacity-matched bagged Transformer reaches
-test PE\(_{6\mathrm{h}}=0.919\). Input-noise and missing-channel checks, together with GRASP fine-tuning
+against persistence at 45\,min). The clearest multi-horizon gain among the systems evaluated here comes from a capacity-matched bagged Transformer, which reaches test PE\(_{6\mathrm{h}}=0.919\) and PE\(_{12\mathrm{h}}=0.877\). A linear ensemble with validation-selected \(\alpha^*=0.3\) and seed-bagged STORM also achieve strong multi-horizon results (both reaching PE\(_{6\mathrm{h}}=0.911\)). Input-noise and missing-channel checks, together with GRASP fine-tuning
 gains at 6--12\,h, support operational motivation beyond a pure leaderboard PE
 number. Horizon-restricted physics losses did not improve PE in a fifteen-seed
 ablation.
@@ -1012,9 +1008,6 @@ S.~Sinha et al., ``PreMevE update: Forecasting ultra-relativistic electrons
 inside Earth's outer radiation belt,'' \emph{Space Weather}, vol.~19,
 e2021SW002773, 2021.
 
-\bibitem{b26}
-R.~Kieokaew et al., ``Forecasting megaelectron-volt electron flux using
-supervised ML and a timeseries foundation model,'' arXiv:2605.15752 (preprint), 2026.
 
 \bibitem{b27}
 E.~Botek et al., ``Prediction of radiation belt electron fluxes at LEO using
@@ -1022,7 +1015,7 @@ neural networks with PROBA-V/EPT data,'' \emph{Space Weather}, vol.~21,
 e2023SW003466, 2023.
 
 \bibitem{b28}
-C.~Forsyth et al., ``Forecasting GOES 15 \(>2\) MeV electron fluxes from
+N.~Y.~Ganushkina et al., ``Forecasting GOES 15 \(>2\) MeV electron fluxes from
 solar wind data and geomagnetic indices,'' \emph{Space Weather}, vol.~18,
 e2019SW002416, 2020.
 

@@ -196,7 +196,7 @@ bagging. The default baseline is not capacity-matched; single-model PE differenc
 should be interpreted with this disparity in mind.
 
 \subsection{Physics Regularization and Training}
-Training minimises a composite objective: a primary multi-horizon residual loss (beta-NLL with a \(2.5\times\) under-prediction penalty during storm periods), plus auxiliary Dst/Kp and storm-onset terms and small regularisers (monotonicity, temporal smoothness, delay, variance calibration, and an Akasofu-\(\varepsilon\) coupling consistency term). Horizon weights emphasise the short horizon. Coefficient values follow the released configuration. We did not ablate every auxiliary term individually; reported PE reflects the full composite objective used in training. All primary models use Adam, cosine decay, early stopping on validation PE, and seeds \(\{42,\ldots,56\}\).
+Training minimises a composite objective: a primary multi-horizon residual loss (beta-NLL with a \(2.5\times\) under-prediction penalty during storm periods), plus auxiliary Dst/Kp and storm-onset terms and small regularisers (monotonicity, temporal smoothness, delay, variance calibration, and an Akasofu-\(\varepsilon\) coupling consistency term). Horizon weights emphasise the short horizon. Coefficient values follow the released configuration. We did not ablate every auxiliary term individually; reported PE reflects the full composite objective used in training. All primary models use Adam, cosine decay, early stopping on the 12\,h validation MSE, and seeds \(\{42,\ldots,56\}\).
 
 \subsection{Baselines and Alternative Gates}
 The primary baseline is a Vanilla Transformer with the same residual heads; the Transformer baseline was run with its default hyperparameters ($d_{\mathrm{model}}=64$, 3 layers, 4 heads). It is therefore not matched to STORM in width or depth. We also trained a capacity-matched Transformer control ($d_{\mathrm{model}}=128$, 2 layers, 4 heads; $\approx1.19\times10^{6}$ parameters) under the same fifteen seeds; its PE is reported separately in Table~\ref{tab:main}. The comparison should be interpreted with this difference in mind. Other nonlinearities (voltage-inspired, cumulative-dose, spectral) did not consistently outperform the physics \(B_z\) gate and are reported as supplementary probes in the repository rather than primary design variants.
@@ -331,7 +331,7 @@ short-horizon PE near \(0.82\), but 6\,h and 12\,h PE fall to about
 \(0.45\) and \(0.18\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from \(0.449 \pm 0.006\) to \(0.599 \pm 0.040\) (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from \(0.182 \pm 0.025\) to \(0.517 \pm 0.040\) (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
 the GOES test scores, as expected under sensor and longitude shift; the
 practical point is the large mid- and long-horizon recovery after
-adaptation rather than a claim of parity with GOES. A similar adaptation profile is observed for the capacity-matched Transformer baseline, which improves its 6\,h PE from \(0.549 \pm 0.015\) (zero-shot) to \(0.625 \pm 0.021\) after fine-tuning.
+adaptation rather than a claim of parity with GOES.
 
 \begin{table}[t]
 \centering
@@ -371,7 +371,7 @@ PE improve substantially after adaptation.}
 
 \textbf{Statistical inference.} The reported p-values are uncorrected for multiple comparisons across horizons and ablations; treat individual significance claims as descriptive rather than confirmatory. All architecture comparisons are internal (STORM versus our own Transformer and LSTM implementations on the same splits). We do not claim to surpass published PE numbers from prior work, which use different cadences, energy channels, and evaluation periods.
 
-STORM-PhysNet is a reproducible multi-horizon baseline on GOES with a documented transfer path toward GSAT-19 GRASP. Relative to a strong Transformer, the clearest single-model gain is short-horizon reliability; the clearest multi-horizon gain in our study comes from a linear ensemble with validation-selected \(\alpha^*=0.3\) (test PE\(_{6\mathrm{h}}=0.911\)) and from seed-bagged STORM (both reaching 6\,h PE of 0.911). A capacity-matched Transformer control ($d_{\mathrm{model}}=128$, two layers) reaches mean PE$_{45\mathrm{min}}=0.981$ and PE$_{6\mathrm{h}}=0.907$; bagging yields $0.986$ / $0.919$ / $0.877$, which is the strongest 6\,h PE among the systems evaluated here. Robustness checks and GRASP fine-tuning support operational motivation beyond a pure leaderboard PE number; for instance, the capacity-matched baseline achieves a marginal persistence prediction efficiency (PE\(_{\mathrm{pers}}\)) of \(0.053 \pm 0.148\) at 45 minutes, illustrating the difficulty of solidly outperforming operational persistence models. Furthermore, under synthetic Gaussian noise injection (\(\sigma=1.0\)), the 6\,h PE of the matched baseline drops to \(0.825 \pm 0.011\), highlighting the need for structurally robust architectures during degraded sensor conditions.
+STORM-PhysNet is a reproducible multi-horizon baseline on GOES with a documented transfer path toward GSAT-19 GRASP. Relative to a strong Transformer, the clearest single-model gain is short-horizon reliability. The clearest multi-horizon gain among the systems evaluated here comes from a capacity-matched bagged Transformer, which reaches test PE\(_{6\mathrm{h}}=0.919\) and PE\(_{12\mathrm{h}}=0.877\). A linear ensemble with validation-selected \(\alpha^*=0.3\) and seed-bagged STORM also achieve strong multi-horizon results (both reaching PE\(_{6\mathrm{h}}=0.911\)). Robustness checks and GRASP fine-tuning support operational motivation beyond a pure leaderboard PE number, highlighting the need for structurally robust architectures during degraded sensor conditions.
 
 Alternative gates, a hybrid SSM backbone, magnetopause features, and a spectral head were implemented and briefly evaluated; they are not used in the reported tables (\texttt{backbone=transformer}, spectral head off).
 
@@ -436,7 +436,7 @@ S.~K. Morley et al., ``Evaluating the performance of radiation belt models,''
 A.~G. Ling et al., ``Identifying solar wind drivers of radiation belt
 responses,'' \emph{Space Weather}, vol.~8, no.~10, 2010.
 \bibitem{b14}
-C.~Forsyth et al., ``Forecasting GOES 15 \(>2\) MeV electron fluxes,''
+N.~Y.~Ganushkina et al., ``Forecasting GOES 15 \(>2\) MeV electron fluxes,''
 \emph{Space Weather}, vol.~18, e2019SW002416, 2020.
 \bibitem{b15}
 S.~Sinha et al., ``PreMevE update,'' \emph{Space Weather}, vol.~19,

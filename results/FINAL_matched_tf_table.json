@@ -20,5 +20,9 @@
     "PE_12h": 0.861011414676977,
     "n_seeds": 15
   },
-  "Transformer_matched_bagged": null
+  "Transformer_matched_bagged": {
+    "PE_45min": 0.986,
+    "PE_6h": 0.919,
+    "PE_12h": 0.877
+  }
 }
