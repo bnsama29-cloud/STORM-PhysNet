@@ -16,6 +16,13 @@ STORM-PhysNet is a Transformer-based model for multi-horizon forecasting of >2 M
 
 The model is evaluated under a rigorous multi-seed protocol and includes zero-shot + fine-tuned transfer experiments to GSAT-19 GRASP (Indian longitude).
 
+## Reproduction notes
+
+- The Colab notebook is a **scaffold**: set `DEMO_MODE = False` for full 15-seed runs (GPU-heavy).
+- Headline PE tables in the papers come from multi-account training; seed-level CSVs are in `results/`.
+- `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
+- Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** capacity-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
+
 ---
 
 ## Key Results (Summary)
