@@ -12,7 +12,8 @@ import warnings
 try:
     import cdflib
     CDF_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f'CRITICAL CDFLIB ERROR: {e}')
     CDF_AVAILABLE = False
     warnings.warn("cdflib not installed. Real CDF reading unavailable. Use synthetic data.")
 
