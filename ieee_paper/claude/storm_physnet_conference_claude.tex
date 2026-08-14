@@ -218,7 +218,7 @@ weight was then applied once to the held-out test set. At \(\alpha^*=0.3\),
 test PE reaches \(0.911\) at 6\,h and \(0.870\) at 12\,h
 (Table~\ref{tab:main}), above either single model. Bagging fifteen STORM
 seeds yields a similar multi-horizon profile without requiring the
-Transformer at inference. The short-STORM / long-TF hybrid recovers the
+Transformer at inference. We recommend bagging operationally due to this computational simplicity, as both approaches perform similarly at 6\,h and 12\,h. The short-STORM / long-TF hybrid recovers the
 Transformer's multi-horizon PE while retaining the STORM 45-min score.
 The hybrid system routes the 45-min head through a trained STORM-Bz model
 and the 6\,h / 12\,h heads through the corresponding Transformer model at
@@ -328,7 +328,7 @@ does not eliminate storm-time residual variance.
 \subsection{GRASP Transfer}
 On GSAT-19 GRASP (fifteen seeds), zero-shot GOES models already achieve
 short-horizon PE near \(0.82\), but 6\,h and 12\,h PE fall to about
-\(0.45\) and \(0.18\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from 0.449 to 0.599 (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from 0.182 to 0.517 (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
+\(0.45\) and \(0.18\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from \(0.449 \pm 0.006\) to \(0.599 \pm 0.040\) (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from \(0.182 \pm 0.025\) to \(0.517 \pm 0.040\) (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
 the GOES test scores, as expected under sensor and longitude shift; the
 practical point is the large mid- and long-horizon recovery after
 adaptation rather than a claim of parity with GOES. A similar adaptation profile is observed for the capacity-matched Transformer baseline, which improves its 6\,h PE from \(0.549 \pm 0.015\) (zero-shot) to \(0.625 \pm 0.021\) after fine-tuning.
