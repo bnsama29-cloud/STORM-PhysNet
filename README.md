@@ -103,8 +103,6 @@ STORM-PhysNet/
 │   │   └── transfer_learning.py    # GRASP fine-tune helpers
 │   └── evaluation/
 │       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
-├── scripts/                        # Standalone training and evaluation scripts
-├── utils/                          # Figure generation and codebase utilities
 ├── notebooks/
 │   └── STORM_PhysNet_Colab.ipynb   # Master reproduction notebook
 ├── figures/                         # ALL paper figures
