@@ -71,7 +71,7 @@ results/transformer_matched_seed_pe.csv
 results/wider_delay_results.csv
 ```
 
-These experiments can also be reproduced from the master notebook (`notebooks/STORM_PhysNet_Colab.ipynb`).
+These experiments can also be reproduced from the master notebook ([Open in Colab](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Colab.ipynb)).
 
 ---
 
@@ -141,7 +141,7 @@ STORM-PhysNet/
 
 ## Quick Start (Google Colab – Recommended)
 
-1. Open [`notebooks/STORM_PhysNet_Colab.ipynb`](notebooks/STORM_PhysNet_Colab.ipynb) in Google Colab.
+1. Open [`notebooks/STORM_PhysNet_Colab.ipynb`](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Colab.ipynb) in Google Colab.
 2. Set runtime to **T4 GPU**.
 3. Run all cells.
 
