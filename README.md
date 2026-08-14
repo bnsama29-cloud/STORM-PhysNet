@@ -39,7 +39,7 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 - Short-horizon gain is statistically significant (paired *p* = 0.002).
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
 - Fine-tuning on GRASP raises 6 h PE from 0.449 → 0.599 and 12 h PE from 0.182 → 0.517.
-- Capacity-matched Transformer control ($d_{\mathrm{model}}=128$, 2 layers) reaches mean PE$_{45\mathrm{min}}$=0.981 and PE$_{6\mathrm{h}}$=0.907; bagging yields 0.986 / 0.919 / 0.877.
+- Capacity-matched Transformer control ($d_{model}=128$, 2 layers) reaches mean PE (45 min) = 0.981 and PE (6 h) = 0.907; bagging yields 0.986 / 0.919 / 0.877.
 
 ---
 
