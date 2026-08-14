@@ -1,15 +1,34 @@
-.tempmediaStorage/
-logs/
-plots/
-
-__pycache__/
-*.pth
-.DS_Store
-.venv/
+# Environments
+.env
+.venv
+env/
 venv/
-*.zip
-# ieee_paper/  # removed so papers and results can be tracked selectively
+ENV/
+env.bak/
+venv.bak/
+__pycache__/
+*.py[cod]
+*$py.class
 
-notebooks/NUL.ipynb
-notebooks/STORM-PhysNet/
+# Temporary Folders & Dumps
+drive/
+dashboard/
+epoch_metrics/
+temp_ieee_final/
+temp_reviewer_package/
+test_work/
+old/
+dump_eval.txt
+*.log
 
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
