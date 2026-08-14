@@ -33,7 +33,7 @@
 \IEEEmembership{Student Member, IEEE}}
 \address[1]{RV College of Engineering, Bengaluru, India (e-mail: samarthbn.ec25@rvce.edu.in)}
 \tfootnote{The authors thank the providers of GOES, OMNI, and GRASP data products.}
-\tfootnote{This work extends a concurrent conference submission on the same system. The present manuscript adds the wider-delay ablation, the bagged-Transformer control, expanded interpretability diagnostics, and the full multi-seed GRASP transfer analysis.}
+\tfootnote{This work extends a concurrent conference submission on the same system. The present manuscript adds the wider-delay ablation, the bagged-Transformer control, the capacity-matched Transformer control, expanded interpretability diagnostics, and the full multi-seed GRASP transfer analysis.}
 \markboth
 {Samarth BN: STORM-PhysNet for GEO Electron Flux Forecasting}
 {Samarth BN: STORM-PhysNet for GEO Electron Flux Forecasting}
@@ -48,7 +48,7 @@ propagation delay, a \(B_z\)-conditioned physics gate, and residual
 heads for simultaneous 45-min, 6-hour, and 12-hour log-flux
 forecasts.
 
-On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$, the strongest multi-horizon results among the systems evaluated in this study. A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. While bagging improves the Transformer, the gap relative to bagged STORM remains; the multi-horizon gain is therefore not claimed to be purely architecture-specific. Controlled ablations show that the short-horizon gain is a property of the trained package as a whole rather than of any individual physics module at inference.
+On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$, the strongest multi-horizon results among the systems evaluated in this study. A bagged Transformer control (sixteen seeds) reached mean PE$_{45\mathrm{min}}\approx0.978$ and PE$_{6\mathrm{h}}\approx0.895$. A capacity-matched Transformer control ($d_{\mathrm{model}}=128$, two layers, four heads) reached mean PE$_{45\mathrm{min}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across fifteen seeds; bagging those seeds yields $0.986$ / $0.919$ / $0.877$. While bagging improves the Transformer, the gap relative to bagged STORM shrinks under capacity matching; the multi-horizon gain is therefore not claimed to be purely architecture-specific. Controlled ablations show that the short-horizon gain is a property of the trained package as a whole rather than of any individual physics module at inference.
 
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
@@ -463,7 +463,7 @@ STORM (No-Physics)
 STORM (No-Gate)
   & \(0.987\,[0.986,0.987]\) & \(0.899\,[0.896,0.902]\) & \(0.853\,[0.848,0.858]\) & \(0.829\,[0.823,0.834]\) \\
 Ensemble \(\alpha^*=0.3\)\textsuperscript{a}
-  & \(0.983\) & \(\mathbf{0.911}\) & \(\mathbf{0.870}\) & \(0.839\) \\
+  & \(0.983\) & \(0.911\) & \(0.870\) & \(0.839\) \\
 Hybrid (short STORM / long TF)\textsuperscript{a}
   & \(0.987\) & \(0.904\) & \(0.859\) & \(0.821\) \\
 STORM bagged (15 seeds)
@@ -873,7 +873,8 @@ transfer path toward GSAT-19 GRASP. Relative to a strong Transformer, the
 clearest single-model gain is short-horizon reliability (including a large gap
 against persistence at 45\,min). The clearest multi-horizon gain among the systems evaluated here comes from a linear
 ensemble with validation-selected \(\alpha^*=0.3\) (test PE\(_{6\mathrm{h}}=0.911\))
-and from seed-bagged STORM. Input-noise and missing-channel checks, together with GRASP fine-tuning
+and from seed-bagged STORM, while a capacity-matched bagged Transformer reaches
+test PE\(_{6\mathrm{h}}=0.919\). Input-noise and missing-channel checks, together with GRASP fine-tuning
 gains at 6--12\,h, support operational motivation beyond a pure leaderboard PE
 number. Horizon-restricted physics losses did not improve PE in a fifteen-seed
 ablation.
