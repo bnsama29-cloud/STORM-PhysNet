@@ -835,7 +835,7 @@ a GOES-pretrained model can retain useful short-horizon skill zero-shot, but
 mid- and long-horizon PE drop until local fine-tuning is applied.
 In our fifteen-seed runs, fine-tuning raises 6\,h PE from about \(0.45\) to about
 \(0.60\) and 12\,h PE from about \(0.18\) to about \(0.52\). Absolute GRASP PE
-remains below the GOES test scores, as expected under sensor and longitude shift.
+remains below the GOES test scores, as expected under sensor and longitude shift. A similar adaptation profile is observed for the capacity-matched Transformer baseline, which improves its 6\,h PE from \(0.549 \pm 0.015\) (zero-shot) to \(0.625 \pm 0.021\) after fine-tuning.
 
 \subsection{Comparability With Published PE Numbers}
 PE values reported across studies should not be compared without normalization
@@ -872,7 +872,7 @@ transfer path toward GSAT-19 GRASP. Relative to a strong Transformer, the
 clearest single-model gain is short-horizon reliability (including a large gap
 against persistence at 45\,min). The clearest multi-horizon gain among the systems evaluated here comes from a capacity-matched bagged Transformer, which reaches test PE\(_{6\mathrm{h}}=0.919\) and PE\(_{12\mathrm{h}}=0.877\). A linear ensemble with validation-selected \(\alpha^*=0.3\) and seed-bagged STORM also achieve strong multi-horizon results (both reaching PE\(_{6\mathrm{h}}=0.911\)). Input-noise and missing-channel checks, together with GRASP fine-tuning
 gains at 6--12\,h, support operational motivation beyond a pure leaderboard PE
-number. Horizon-restricted physics losses did not improve PE in a fifteen-seed
+number; for instance, the capacity-matched baseline achieves a marginal persistence prediction efficiency (PE\(_{\mathrm{pers}}\)) of \(0.053 \pm 0.148\) at 45 minutes, illustrating the difficulty of solidly outperforming operational persistence models. Furthermore, under synthetic Gaussian noise injection (\(\sigma=1.0\)), the 6\,h PE of the matched baseline drops to \(0.825 \pm 0.011\), highlighting the need for structurally robust architectures during degraded sensor conditions. Horizon-restricted physics losses did not improve PE in a fifteen-seed
 ablation.
 \section*{Data Availability}
 The code, configuration files, trained checkpoints, evaluation scripts,
