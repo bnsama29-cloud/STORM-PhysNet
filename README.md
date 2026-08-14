@@ -81,6 +81,7 @@ These experiments can also be reproduced from the master notebook (`notebooks/ST
 STORM-PhysNet/
 ├── README.md
 ├── requirements.txt
+├── .gitignore
 ├── configs/
 │   └── config.yaml                 # Model, data, training hyperparameters
 │                                   # forecast_horizons: [0.75, 6.0, 12.0]
@@ -88,9 +89,7 @@ STORM-PhysNet/
 │   ├── data/
 │   │   ├── cdf_reader.py           # GOES CDF + OMNI readers (paper pipeline)
 │   │   ├── preprocessor.py         # Feature build, chronological splits
-│   │   ├── dataloader.py           # Windows, horizons [0.75, 6, 12], storm sampler
-│   │   ├── synthetic_generator.py  # DEV ONLY — not used in paper runs
-│   │   └── storm_augmentor.py      # DEV ONLY — not used in paper runs
+│   │   └── dataloader.py           # Windows, horizons [0.75, 6, 12], storm sampler
 │   ├── model/
 │   │   ├── storm_physnet.py        # STORM-PhysNet (delay + Bz gate + heads)
 │   │   ├── baselines.py            # VanillaTransformer, LSTM, MLP, CNN
@@ -104,6 +103,8 @@ STORM-PhysNet/
 │   │   └── transfer_learning.py    # GRASP fine-tune helpers
 │   └── evaluation/
 │       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
+├── scripts/                        # Standalone training and evaluation scripts
+├── utils/                          # Figure generation and codebase utilities
 ├── notebooks/
 │   └── STORM_PhysNet_Colab.ipynb   # Master reproduction notebook
 ├── figures/                         # ALL paper figures
@@ -140,7 +141,6 @@ STORM-PhysNet/
 **Notes**
 
 - Paper experiments load **real** GOES / OMNI / GRASP files under `datasets/`.
-- `synthetic_generator.py` and `storm_augmentor.py` are **not** imported by `Trainer` or the notebook pipeline.
 - Trained checkpoints for seeds 42–56 are provided under `checkpoints/`.
 - Result CSVs and curated PE summaries are under `results/`.
 - Supplementary extra experiments (Noise Robustness, Operational Persistence PE, GRASP fine-tuning) are located in `results/extra_experiments/` and are fully reproducible via the updated Colab notebook script.
