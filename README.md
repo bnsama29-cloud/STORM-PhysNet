@@ -18,8 +18,7 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ## Reproduction notes
 
-- The Colab notebook is a **scaffold**: set `DEMO_MODE = False` for full 15-seed runs (GPU-heavy).
-- Headline PE tables in the papers come from multi-account training; seed-level CSVs are in `results/`.
+- **Note:** Headline PE tables come from `results/*.csv` and released checkpoints; the notebook is a pipeline scaffold, not a one-click 15-seed reproduction.
 - `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** capacity-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
 
@@ -180,8 +179,7 @@ Sample files are included under `datasets/` for convenience. For full archives a
 
 ## Reproduction notes
 
-- The Colab notebook is a **scaffold**: set `DEMO_MODE = False` for full 15-seed runs (GPU-heavy).
-- Headline PE tables in the papers come from multi-seed training; seed-level CSVs are in `results/`.
+- **Note:** Headline PE tables come from `results/*.csv` and released checkpoints; the notebook is a pipeline scaffold, not a one-click 15-seed reproduction.
 - `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** capacity-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
 - A capacity-matched Transformer control (`d_model=128`, 2 layers, 4 heads) was trained for fifteen seeds; checkpoints are under `checkpoints/transformer_matched/seed_{42..56}/` and results under `results/transformer_matched_*`.
