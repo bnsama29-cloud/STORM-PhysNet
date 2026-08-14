@@ -1,0 +1,14 @@
+{
+  "account_id": 6,
+  "seed": 53,
+  "model": "transformer_matched",
+  "d_model": 128,
+  "num_layers": 2,
+  "nhead": 4,
+  "params": 1188739,
+  "epochs": 40,
+  "skipped_train": false,
+  "PE_45min": 0.9842288216289569,
+  "PE_6h": 0.9143484805994386,
+  "PE_12h": 0.8635933792756091
+}
