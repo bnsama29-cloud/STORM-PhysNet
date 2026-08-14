@@ -6,7 +6,8 @@ Layout: checkpoints/<model>/seed_<id>/*_best.pt
 
 Models and seed coverage:
 - storm_bz: 42–56 (15 seeds)
-- transformer: 42–56 (15 seeds)
+- transformer: 42–56 (15 seeds, d_model=64, 3 layers, 4 heads — not capacity-matched)
+- transformer_matched: 42–56 (15 seeds, d_model=128, 2 layers, 4 heads — capacity-matched control)
 - lstm: 42–56 (15 seeds)
 - storm_no_delay: 42–56 (15 seeds)
 - storm_no_gate: 42–56 (15 seeds)
@@ -15,4 +16,5 @@ Models and seed coverage:
 - grasp: 42–56 (15 seeds, fine-tuned heads)
 
 Transformer baseline: d_model=64, 3 layers, 4 heads (not capacity-matched to STORM).
-Paper PE tables are also summarized in results/*.csv.
+Transformer matched: d_model=128, 2 layers, 4 heads (~1.19e6 params; capacity-matched control).
+Paper PE tables are also summarized in results/*.csv and results/*.json.

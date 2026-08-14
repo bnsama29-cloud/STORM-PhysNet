@@ -23,6 +23,8 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 | System | PE<sub>45min</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> | PE<sub>st,6h</sub> |
 |-------------------------|--------------------|-----------------|------------------|--------------------|
 | Transformer | 0.977 | 0.904 | 0.859 | 0.821 |
+| **Transformer matched (mean)** | **0.981** | **0.907** | **0.861** | — |
+| **Transformer matched (bagged)** | **0.986** | **0.919** | **0.877** | — |
 | STORM-Bz | **0.986** | 0.897 | 0.851 | 0.827 |
 | Ensemble (α*=0.3) | 0.983 | **0.911** | **0.870** | 0.839 |
 | STORM bagged (15 seeds) | **0.988** | 0.911 | 0.870 | **0.849** |
@@ -30,26 +32,36 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 - Short-horizon gain is statistically significant (paired *p* = 0.002).
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
 - Fine-tuning on GRASP raises 6 h PE from 0.449 → 0.599 and 12 h PE from 0.182 → 0.517.
+- Capacity-matched Transformer control ($d_{\mathrm{model}}=128$, 2 layers) reaches mean PE$_{45\mathrm{min}}$=0.981 and PE$_{6\mathrm{h}}$=0.907; bagging yields 0.986 / 0.919 / 0.877.
 
 ---
 
 ## Extra Experiments (Access Paper)
 
-The IEEE Access version includes two additional controlled experiments:
+The IEEE Access version includes additional controlled experiments:
 
-1. **Wider Delay Bound Ablation**  
+1. **Capacity-Matched Transformer Control**  
+   A Vanilla Transformer with the same encoder capacity as STORM
+   ($d_{\mathrm{model}}=128$, two layers, four heads;
+   $\approx1.19\times10^{6}$ parameters) was trained under the same
+   chronological split and fifteen seeds (seeds 42–56).
+   - Mean: PE<sub>45min</sub>=0.981, PE<sub>6h</sub>=0.907, PE<sub>12h</sub>=0.861
+   - Bagged (15 seeds): PE<sub>45min</sub>=0.986, PE<sub>6h</sub>=0.919, PE<sub>12h</sub>=0.877
+   - Matching encoder capacity shrinks the short-horizon gap versus STORM-Bz
+     and improves multi-horizon PE under bagging.
+
+2. **Wider Delay Bound Ablation**  
    STORM was retrained with delay upper bounds of 2.0, 2.5, 3.0, 3.5, and 4.0 h (fifteen seeds each).  
    Mean PE<sub>45min</sub> stayed in the narrow range 0.9859–0.9862 and PE<sub>6h</sub> stayed in 0.900–0.902.  
    The original [0.5, 1.5] h constraint is therefore not a performance bottleneck.
 
-2. **Bagged Transformer Control**  
-   A sixteen-seed bagged Transformer reached mean PE<sub>45min</sub> ≈ 0.978 and PE<sub>6h</sub> ≈ 0.895.  
-   While bagging improves the Transformer, the gap relative to bagged STORM remains.
-
-Result summary (wider-delay ablation + bagged Transformer control) is in:
+Result summaries are in:
 
 ```text
-results/summary.json
+results/transformer_matched_summary.json
+results/transformer_matched_bagged_pe.json
+results/transformer_matched_seed_pe.csv
+results/wider_delay_results.csv
 ```
 
 These experiments can also be reproduced from the master notebook (`notebooks/STORM_PhysNet_Colab.ipynb`).
@@ -94,12 +106,17 @@ STORM-PhysNet/
 │   ├── all_results.csv
 │   ├── wider_delay_results.csv
 │   ├── bagged_tf_results.csv
-│   ├── grasp_metrics_summary.csv    # GRASP zero-shot / fine-tune
+│   ├── transformer_matched_summary.json
+│   ├── transformer_matched_bagged_pe.json
+│   ├── transformer_matched_seed_pe.csv
+│   ├── matched_tf_seeds/seed_*.json
+│   ├── grasp_metrics_summary.csv    # GRASP zero-shot / fine-tuned
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md
 │   ├── storm_bz/seed_42/ … seed_56/
 │   ├── transformer/seed_42/ … seed_56/
+│   ├── transformer_matched/seed_42/ … seed_56/
 │   ├── lstm/seed_42/ … seed_56/
 │   ├── storm_no_delay/ …
 │   ├── storm_no_gate/ …
@@ -155,6 +172,7 @@ Sample files are included under `datasets/` for convenience. For full archives a
 - **Metrics**: PE<sub>clim</sub> (primary) and PE<sub>pers</sub>
 - **Baselines**:
   - Transformer baseline (default hyperparameters: d_model=64, 3 layers, 4 heads) — not matched to STORM in width or depth
+  - **Transformer matched** (d_model=128, 2 layers, 4 heads; ~1.19e6 params) — capacity-matched control, fifteen seeds
   - LSTM
 - **Ablations**: No-Delay, No-Gate, No-Physics, horizon-restricted physics loss
 - Test PE is computed **once** after training and never used for model selection
@@ -167,6 +185,7 @@ Sample files are included under `datasets/` for convenience. For full archives a
 - Headline PE tables in the papers come from multi-seed training; seed-level CSVs are in `results/`.
 - `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** capacity-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
+- A capacity-matched Transformer control (`d_model=128`, 2 layers, 4 heads) was trained for fifteen seeds; checkpoints are under `checkpoints/transformer_matched/seed_{42..56}/` and results under `results/transformer_matched_*`.
 - Best checkpoints for all main models and seeds 42–56 are included under `checkpoints/`.
 
 ---

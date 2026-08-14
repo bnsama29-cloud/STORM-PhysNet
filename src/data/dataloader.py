@@ -56,7 +56,8 @@ class FluxDataset(Dataset):
     ):
         self.seq_len  = seq_len
         self.horizons = horizons
-        self.max_h    = max(horizons)
+        self.horizon_steps = [max(1, int(round(float(h)))) for h in self.horizons]
+        self.max_h    = int(max(self.horizon_steps))
         self.stride   = stride
 
         # Select available SW features
@@ -96,13 +97,13 @@ class FluxDataset(Dataset):
 
         # Multi-horizon targets
         y_flux  = torch.tensor(
-            [self.flux_data[end + h - 1] for h in self.horizons],
+            [self.flux_data[end + h - 1] for h in self.horizon_steps],
             dtype=torch.float32)                                      # [3]
         y_dst   = torch.tensor(
-            [self.dst_data[end + h - 1] for h in self.horizons],
+            [self.dst_data[end + h - 1] for h in self.horizon_steps],
             dtype=torch.float32)
         y_kp    = torch.tensor(
-            [self.kp_data[end + h - 1] for h in self.horizons],
+            [self.kp_data[end + h - 1] for h in self.horizon_steps],
             dtype=torch.float32)
 
         # Storm onset in next 6h (binary label for auxiliary task)

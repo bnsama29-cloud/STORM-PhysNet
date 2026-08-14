@@ -63,7 +63,16 @@ class Trainer:
         elif model_type == "cnn":
             model = StandardCNN(n_sw_features=n_sw_features, seq_len=self.cfg["data"]["sequence_length"], n_horizons=len(self.cfg["data"]["forecast_horizons"])).to(self.device)
         elif model_type == "transformer":
-            model = VanillaTransformer(n_sw_features=n_sw_features, seq_len=self.cfg["data"]["sequence_length"], n_horizons=len(self.cfg["data"]["forecast_horizons"])).to(self.device)
+            _tf_kw = dict(
+                n_sw_features=n_sw_features,
+                seq_len=self.cfg["data"]["sequence_length"],
+                n_horizons=len(self.cfg["data"]["forecast_horizons"]),
+            )
+            if self.cfg.get("match_storm_capacity", False):
+                _tf_kw["d_model"] = int(m.get("d_model", 128))
+                _tf_kw["nhead"] = int(m.get("transformer", {}).get("n_heads", 4))
+                _tf_kw["num_layers"] = int(m.get("transformer", {}).get("n_layers", 2))
+            model = VanillaTransformer(**_tf_kw).to(self.device)
         else:
             model = STORMPhysNet(
                 n_sw_features        = n_sw_features,
