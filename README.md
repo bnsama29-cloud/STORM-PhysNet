@@ -115,10 +115,10 @@ STORM-PhysNet/
 │   ├── transformer_matched_summary.json
 │   ├── transformer_matched_bagged_pe.json
 │   ├── transformer_matched_seed_pe.csv
-│   ├── grasp_metrics_summary.csv    # GRASP zero-shot / fine-tuned
-│   ├── grasp_*.csv                  # GRASP logs
-│   ├── noise_*.csv                  # Noise robustness logs
-│   ├── pers_*.csv                   # Operational Persistence logs
+│   ├── grasp_metrics_summary.csv    # STORM / main-paper GRASP metrics
+│   ├── matched_tf_grasp.csv         # Capacity-matched TF GRASP zero-shot / fine-tune (seeds 42–56)
+│   ├── matched_tf_noise.csv         # Capacity-matched TF noise robustness
+│   ├── matched_tf_pers.csv          # Capacity-matched TF PE_pers at 45 min
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md
