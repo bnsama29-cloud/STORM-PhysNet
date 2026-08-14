@@ -122,9 +122,7 @@ STORM-PhysNet/
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md
-│   └── (Note: Due to GitHub file size limits, large model checkpoints
-│      such as `storm_bz`, `transformer`, and ablations are hosted
-│      externally. See `checkpoints/README.md` for download links.)
+│   └── (All trained checkpoints for seeds 42-56 across all models)
 └── datasets/                        # only if you already ship them
     ├── goes/
     ├── omni/
