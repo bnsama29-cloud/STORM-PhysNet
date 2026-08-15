@@ -38,7 +38,7 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 - Short-horizon gain is statistically significant (paired *p* = 0.002).
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
 - Fine-tuning on GRASP raises 6 h PE from 0.449 → 0.599 and 12 h PE from 0.182 → 0.517.
-- Capacity-matched Transformer control ($d_{model}=128$, 2 layers) reaches mean PE (1 h) = 0.981 and PE (6 h) = 0.907; bagging yields 0.986 / 0.919 / 0.877.
+- Architecture-matched Transformer control ($d_{model}=128$, 2 layers) reaches mean PE (1 h) = 0.981 and PE (6 h) = 0.907; bagging yields 0.986 / 0.919 / 0.877.
 
 ---
 
@@ -53,7 +53,7 @@ The IEEE Access version includes additional controlled experiments:
    chronological split and fifteen seeds (seeds 42–56).
    - Mean: PE<sub>1h</sub>=0.981, PE<sub>6h</sub>=0.907, PE<sub>12h</sub>=0.861
    - Bagged (15 seeds): PE<sub>1h</sub>=0.986, PE<sub>6h</sub>=0.919, PE<sub>12h</sub>=0.877
-   - Matching encoder capacity shrinks the short-horizon gap versus STORM-Bz
+   - Matching encoder hyperparameters shrinks the short-horizon gap versus STORM-Bz
      and improves multi-horizon PE under bagging.
 
 2. **Wider Delay Bound Ablation**  
@@ -83,12 +83,12 @@ STORM-PhysNet/
 ├── .gitignore
 ├── configs/
 │   └── config.yaml                 # Model, data, training hyperparameters
-│                                   # forecast_horizons: [0.75, 6.0, 12.0]
+│                                   # forecast_horizons: [1.0, 6.0, 12.0]
 ├── src/
 │   ├── data/
 │   │   ├── cdf_reader.py           # GOES CDF + OMNI readers (paper pipeline)
 │   │   ├── preprocessor.py         # Feature build, chronological splits
-│   │   └── dataloader.py           # Windows, horizons [0.75, 6, 12], storm sampler
+│   │   └── dataloader.py           # Windows, horizons [1.0, 6.0, 12.0], storm sampler
 │   ├── model/
 │   │   ├── storm_physnet.py        # STORM-PhysNet (delay + Bz gate + heads)
 │   │   ├── baselines.py            # VanillaTransformer, LSTM, MLP, CNN
@@ -115,9 +115,9 @@ STORM-PhysNet/
 │   ├── transformer_matched_bagged_pe.json
 │   ├── transformer_matched_seed_pe.csv
 │   ├── grasp_metrics_summary.csv    # STORM / main-paper GRASP metrics
-│   ├── matched_tf_grasp.csv         # Capacity-matched TF GRASP zero-shot / fine-tune (seeds 42–56)
-│   ├── matched_tf_noise.csv         # Capacity-matched TF noise robustness
-│   ├── matched_tf_pers.csv          # Capacity-matched TF PE_pers at 1 h
+│   ├── matched_tf_grasp.csv         # Architecture-matched TF GRASP zero-shot / fine-tune (seeds 42–56)
+│   ├── matched_tf_noise.csv         # Architecture-matched TF noise robustness
+│   ├── matched_tf_pers.csv          # Architecture-matched TF PE_pers at 1 h
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md
@@ -187,7 +187,7 @@ Sample files are included under `datasets/` for convenience. For full archives a
 - **Note:** Headline PE tables come from `results/*.csv` and released checkpoints; the notebook is a pipeline scaffold, not a one-click 15-seed reproduction.
 - `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** architecture-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
-- A architecture-matched Transformer control (`d_model=128`, 2 layers, 4 heads) was trained for fifteen seeds; checkpoints are under `checkpoints/transformer_matched/seed_{42..56}/` and results under `results/transformer_matched_*`.
+- An architecture-matched Transformer control (`d_model=128`, 2 layers, 4 heads) was trained for fifteen seeds; checkpoints are under `checkpoints/transformer_matched/seed_{42..56}/` and results under `results/transformer_matched_*`.
 - Best checkpoints for all main models and seeds 42–56 are included under `checkpoints/`.
 
 ---

@@ -53,7 +53,7 @@ class MultiHorizonHeads(nn.Module):
     """
     Three forecast heads with physics residual prediction.
 
-    Horizons: [1h (~30-45 min), 6h, 12h]
+    Horizons: [1h, 6h, 12h]
     Each head predicts the RESIDUAL over the persistence baseline.
 
     Horizon conditioning: previously all three flux heads consumed the exact
