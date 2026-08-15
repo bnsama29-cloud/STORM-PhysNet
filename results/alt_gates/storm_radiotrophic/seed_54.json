@@ -1,0 +1,16 @@
+{
+  "account_id": 2,
+  "seed": 54,
+  "model": "storm_radiotrophic",
+  "gate_type": "radiotrophic",
+  "use_spectral_head": false,
+  "horizons": [
+    1.0,
+    6.0,
+    12.0
+  ],
+  "epochs": 40,
+  "PE_1h": 0.9872270822525024,
+  "PE_6h": 0.9122977256774902,
+  "PE_12h": 0.8742759227752686
+}

@@ -61,6 +61,15 @@ The IEEE Access version includes additional controlled experiments:
    Mean PE<sub>1h</sub> stayed in the narrow range 0.9859–0.9862 and PE<sub>6h</sub> stayed in 0.900–0.902.  
    The original [0.5, 1.5] h constraint is therefore not a performance bottleneck.
 
+3. **Alternate Physics Gates**  
+   We evaluate three alternate physics gate architectures to explore different physical inductive biases (15 seeds each). All variants retain exceptional 1-hour performance and achieve strong multi-horizon forecasting, indicating the overall framework is robust to the exact choice of physical proxy.
+   
+   | Model Variant | PE (1 h) | PE (6 h) | PE (12 h) |
+   |---------------|-----------|----------|-----------|
+   | `storm_cathode` | 0.987 | 0.909 | 0.867 |
+   | `storm_cathode_spec` | 0.987 | 0.908 | 0.867 |
+   | `storm_radiotrophic` | 0.987 | 0.910 | 0.868 |
+
 Result summaries are in:
 
 ```text
@@ -68,6 +77,7 @@ results/transformer_matched_summary.json
 results/transformer_matched_bagged_pe.json
 results/transformer_matched_seed_pe.csv
 results/wider_delay_results.csv
+results/alt_gates_summary.csv
 ```
 
 These experiments can also be reproduced from the master notebook ([Open in Colab](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Colab.ipynb)).

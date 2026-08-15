@@ -1,0 +1,16 @@
+{
+  "account_id": 0,
+  "seed": 52,
+  "model": "storm_cathode",
+  "gate_type": "cathode_anode",
+  "use_spectral_head": false,
+  "horizons": [
+    1.0,
+    6.0,
+    12.0
+  ],
+  "epochs": 40,
+  "PE_1h": 0.9873283505439758,
+  "PE_6h": 0.912225067615509,
+  "PE_12h": 0.8688986301422119
+}
