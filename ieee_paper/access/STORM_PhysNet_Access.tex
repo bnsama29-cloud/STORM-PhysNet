@@ -175,7 +175,7 @@ temporal-attention Transformer, which was therefore retained for all reported
 experiments.
 
 Beyond GEO, Sinha et al.\ developed PreMevE~\cite{b25}; Botek
-et al.~\cite{b27} applied neural networks at low Earth orbit; Wang et
+et al.~\cite{b26} applied neural networks at low Earth orbit; Wang et
 al.~\cite{b12} used LSTM with MagEIS observations.
 
 A recurring theme in this literature is that headline PE depends strongly on the
@@ -219,7 +219,7 @@ Sinha et al.\ (2021) & PreMevE ensemble & $\sim$1--2\,day belt-wide & Multi-miss
 \end{table*}
 
 \subsection{Solar Wind Propagation Delay}
-Solar-wind transit from L1 to the magnetopause is typically on the order of 0.5--1.5\,h~\cite{b28} depending on solar-wind speed. The delay module is constrained to \([0.5, 1.5]\,\mathrm{h}\), a band chosen to cover that range while still allowing limited storm-time deviation without breaking causality. We do not claim a unique recovered constant of 1.09\,h from every window.
+Solar-wind transit from L1 to the magnetopause is typically on the order of 0.5--1.5\,h~\cite{b27} depending on solar-wind speed. The delay module is constrained to \([0.5, 1.5]\,\mathrm{h}\), a band chosen to cover that range while still allowing limited storm-time deviation without breaking causality. We do not claim a unique recovered constant of 1.09\,h from every window.
 
 \subsection{Transfer Learning and Cross-Satellite Adaptation}
 Most radiation-belt transfer efforts have focused on cross-calibration of flux
@@ -478,7 +478,7 @@ RDG, RDG-S, and SDG.
 
 \subsection{Baselines and Training}
 We compare against Vanilla Transformer (same residual heads, no delay/gate), a
-Transformer baseline (default hyperparameters, not matched in width or depth to the STORM encoder), and LSTM. Training uses Adam~\cite{b29} with initial learning
+Transformer baseline (default hyperparameters, not matched in width or depth to the STORM encoder), and LSTM. Training uses Adam~\cite{b28} with initial learning
 rate \(3\times10^{-4}\), cosine decay, batch size 64, and early stopping on
 12\,h validation MSE. Primary STORM and Transformer runs use seeds \(\{42,\ldots,56\}\).
 Transfer fine-tuning uses a lower learning rate for at most 50 epochs.
@@ -1084,17 +1084,17 @@ inside Earth's outer radiation belt,'' \emph{Space Weather}, vol.~19,
 e2021SW002773, 2021.
 
 
-\bibitem{b27}
+\bibitem{b26}
 E.~Botek et al., ``Prediction of radiation belt electron fluxes at LEO using
 neural networks with PROBA-V/EPT data,'' \emph{Space Weather}, vol.~21,
 e2023SW003466, 2023.
 
-\bibitem{b28}
+\bibitem{b27}
 N.~Y.~Ganushkina et al., ``Forecasting GOES 15 \(>2\) MeV electron fluxes from
 solar wind data and geomagnetic indices,'' \emph{Space Weather}, vol.~18,
 e2019SW002416, 2020.
 
-\bibitem{b29}
+\bibitem{b28}
 D.~P. Kingma and J.~Ba, ``Adam: A method for stochastic optimization,''
 in \emph{Proc.\ Int. Conf. Learn. Represent.\ (ICLR)}, 2015.
 
