@@ -332,7 +332,7 @@ representation is extracted;
 Measured parameter counts are approximately $3.43\times10^{5}$ for
 STORM-Bz and $8.45\times10^{5}$ for the Transformer baseline
 (default hyperparameters). The two models differ in both width and depth;
-they are not architecture-matched. We additionally trained a architecture-matched
+they are not architecture-matched. We additionally trained an architecture-matched
 Transformer control with the same encoder size as STORM
 ($d_{\mathrm{model}}=128$, two layers, four heads;
 $\approx1.19\times10^{6}$ parameters) under the same chronological split and
@@ -864,7 +864,7 @@ Alternative gates, a hybrid SSM backbone, magnetopause features, and a spectral 
 STORM-PhysNet is a reproducible multi-horizon baseline on GOES with a documented
 transfer path toward GSAT-19 GRASP. Relative to a strong Transformer, the
 clearest single-model gain is short-horizon reliability (including a large gap
-against persistence at 1\,h). The clearest multi-horizon gain among the systems evaluated here comes from a architecture-matched bagged Transformer, which reaches test PE\(_{6\mathrm{h}}=0.919\) and PE\(_{12\mathrm{h}}=0.877\). A linear ensemble with validation-selected \(\alpha^*=0.3\) and seed-bagged STORM also achieve strong multi-horizon results (both reaching PE\(_{6\mathrm{h}}=0.911\)). Input-noise and missing-channel checks, together with GRASP fine-tuning
+against persistence at 1\,h). The clearest multi-horizon gain among the systems evaluated here comes from an architecture-matched bagged Transformer, which reaches test PE\(_{6\mathrm{h}}=0.919\) and PE\(_{12\mathrm{h}}=0.877\). A linear ensemble with validation-selected \(\alpha^*=0.3\) and seed-bagged STORM also achieve strong multi-horizon results (both reaching PE\(_{6\mathrm{h}}=0.911\)). Input-noise and missing-channel checks, together with GRASP fine-tuning
 gains at 6--12\,h, support operational motivation beyond a pure leaderboard PE
 number; for instance, the architecture-matched baseline achieves a marginal persistence prediction efficiency (PE\(_{\mathrm{pers}}\)) of \(0.053 \pm 0.148\) at 1\,h, illustrating the difficulty of solidly outperforming operational persistence models. Furthermore, under synthetic Gaussian noise injection (\(\sigma=1.0\)), the 6\,h PE of the matched baseline drops to \(0.825 \pm 0.011\), highlighting the need for structurally robust architectures during degraded sensor conditions. Horizon-restricted physics losses did not improve PE in a fifteen-seed
 ablation.

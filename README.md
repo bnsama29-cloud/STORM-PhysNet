@@ -46,7 +46,7 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 The IEEE Access version includes additional controlled experiments:
 
-1. **Capacity-Matched Transformer Control**  
+1. **Architecture-Matched Transformer Control**  
    A Vanilla Transformer with the same encoder hyperparameters ($d_{\mathrm{model}}$, layers, heads) as STORM
    ($d_{\mathrm{model}}=128$, two layers, four heads;
    $\approx1.19\times10^{6}$ parameters) was trained under the same
