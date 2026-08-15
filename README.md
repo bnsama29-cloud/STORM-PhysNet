@@ -124,6 +124,7 @@ STORM-PhysNet/
 │   ├── transformer_matched_summary.json
 │   ├── transformer_matched_bagged_pe.json
 │   ├── transformer_matched_seed_pe.csv
+│   ├── alt_gates_summary.csv        # PE for alternative physical gates
 │   ├── grasp_metrics_summary.csv    # STORM / main-paper GRASP metrics
 │   ├── matched_tf_grasp.csv         # Architecture-matched TF GRASP zero-shot / fine-tune (seeds 42–56)
 │   ├── matched_tf_noise.csv         # Architecture-matched TF noise robustness
