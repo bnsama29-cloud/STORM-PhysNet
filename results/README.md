@@ -16,7 +16,7 @@
 | `matched_tf_noise.csv` | Noise robustness results (Capacity-matched Transformer) |
 | `matched_tf_pers.csv` | Operational Persistence results |
 
-15 capacity-matched Transformer checkpoints (`.pt`) **are** released in this repository in the `checkpoints/transformer_matched/` directory.  
+15 architecture-matched Transformer checkpoints (`.pt`) **are** released in this repository in the `checkpoints/transformer_matched/` directory.  
 Code + `datasets/` + these CSVs are enough to verify the reported PE values.
 
 **Note:** The wider-delay 2.0 h bound used 16 seeds; all other bounds and main tables use 15 seeds.

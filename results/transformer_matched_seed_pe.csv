@@ -1,4 +1,4 @@
-account_id,seed,model,d_model,num_layers,nhead,params,epochs,skipped_train,PE_45min,PE_6h,PE_12h
+account_id,seed,model,d_model,num_layers,nhead,params,epochs,skipped_train,PE_1h,PE_6h,PE_12h
 0,42,transformer_matched,128,2,4,1188739,40,False,0.9792065544984446,0.9093465378643764,0.8642490471395177
 0,43,transformer_matched,128,2,4,1188739,40,False,0.9819926563811956,0.9114316638843108,0.8628368871356875
 1,44,transformer_matched,128,2,4,1188739,40,False,0.9756570706422337,0.9011043351597822,0.8595528641695589

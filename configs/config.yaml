@@ -1,7 +1,7 @@
 data:
   batch_size: 64
   forecast_horizons:
-  - 0.75
+  - 1.0
   - 6.0
   - 12.0
   goes_cdf_dir: datasets/goes

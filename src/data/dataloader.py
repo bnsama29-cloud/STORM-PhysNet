@@ -13,8 +13,9 @@ from typing import Optional
 from src.data.preprocessor import ALL_FEATURES, TARGET_COL
 
 # Forecast horizons in hours
-# Must match config.yaml forecast_horizons. The old [1,6,12] was overridden by config during training.
-HORIZONS = [0.75, 6.0, 12.0]
+# Must match config.yaml forecast_horizons.
+HORIZONS = [1.0, 6.0, 12.0]  # integer hourly leads; must match config.yaml
+# Short horizon is the next hourly GOES sample (1 h lead).
 
 
 class FluxDataset(Dataset):
