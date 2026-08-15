@@ -347,7 +347,7 @@ does not eliminate storm-time residual variance.
 \subsection{GRASP Transfer}
 On GSAT-19 GRASP (fifteen seeds), zero-shot GOES models already achieve
 short-horizon PE near \(0.82\), but 6\,h and 12\,h PE fall to about
-\(0.45\) and \(0.18\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from \(0.449 \pm 0.006\) to \(0.599 \pm 0.040\) (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from \(0.182 \pm 0.025\) to \(0.517 \pm 0.040\) (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
+\(0.45\) and \(0.18\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from \(0.449 \pm 0.011\) to \(0.599 \pm 0.073\) (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from \(0.182 \pm 0.045\) to \(0.517 \pm 0.073\) (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
 the GOES test scores, as expected under sensor and longitude shift; the
 practical point is the large mid- and long-horizon recovery after
 adaptation rather than a claim of parity with GOES. A similar adaptation profile is observed for the architecture-matched Transformer baseline, which improves its 6\,h PE from \(0.549 \pm 0.015\) (zero-shot) to \(0.625 \pm 0.021\) after fine-tuning.
