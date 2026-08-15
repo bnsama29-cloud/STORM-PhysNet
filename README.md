@@ -66,9 +66,9 @@ The IEEE Access version includes additional controlled experiments:
    
    | Model Variant | PE (1 h) | PE (6 h) | PE (12 h) |
    |---------------|-----------|----------|-----------|
-   | `storm_cathode` | 0.987 | 0.909 | 0.867 |
-   | `storm_cathode_spec` | 0.987 | 0.908 | 0.867 |
-   | `storm_radiotrophic` | 0.987 | 0.910 | 0.868 |
+   | `storm_cathode` | 0.987 ± 0.000 | 0.910 ± 0.004 | 0.868 ± 0.004 |
+   | `storm_cathode_spec` | 0.987 ± 0.000 | 0.909 ± 0.003 | 0.867 ± 0.004 |
+   | `storm_radiotrophic` | 0.987 ± 0.000 | 0.911 ± 0.003 | 0.868 ± 0.004 |
 
 Result summaries are in:
 
