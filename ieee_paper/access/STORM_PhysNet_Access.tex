@@ -48,7 +48,7 @@ propagation delay, a \(B_z\)-conditioned physics gate, and residual
 heads for simultaneous 1-hour, 6-hour, and 12-hour log-flux
 forecasts.
 
-On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{45\mathrm{min}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$. An architecture-matched Transformer control ($d_{\mathrm{model}}=128$, two layers, four heads) reached mean PE$_{45\mathrm{min}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across fifteen seeds; bagging those seeds yields $0.986$ / $0.919$ / $0.877$, establishing the bagged architecture-matched Transformer as the strongest model at the 6\,h and 12\,h horizons. While STORM dominates the single-model 1-hour forecast ($0.988$ bagged), capacity and bagging move multi-horizon PE more than the physics modules at inference. Controlled ablations show that the short-horizon gain is a property of the trained package as a whole rather than of any individual physics module at inference.
+On hourly GOES--OMNI data with fifteen random initializations of the same chronological split, STORM-Bz improves short-horizon reliability (PE$_{1\mathrm{h}}=0.986$ versus Transformer $0.977$, paired $p = 0.002$) and remains clearly positive against persistence (PE$\approx0.32$ versus $\approx-0.14$). At 6\,h and 12\,h a plain Transformer remains competitive or slightly stronger as a single model. A validation-selected linear ensemble ($\alpha^*=0.3$) and seed-bagged STORM both reach 6\,h PE of $0.911$. An architecture-matched Transformer control ($d_{\mathrm{model}}=128$, two layers, four heads) reached mean PE$_{1\mathrm{h}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across fifteen seeds; bagging those seeds yields $0.986$ / $0.919$ / $0.877$, establishing the bagged architecture-matched Transformer as the strongest model at the 6\,h and 12\,h horizons. While STORM dominates the single-model 1-hour forecast ($0.988$ bagged), capacity and bagging move multi-horizon PE more than the physics modules at inference. Controlled ablations show that the short-horizon gain is a property of the trained package as a whole rather than of any individual physics module at inference.
 
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
@@ -250,7 +250,7 @@ Solar wind and interplanetary magnetic field parameters are drawn from the OMNI
 \item Indices: Kp, Dst
 \item Within-hour variability: \(\mathrm{std}(\log\mathrm{flux})\) over the 1-minute samples
 \end{itemize}
-Forecast targets are defined on the hourly GOES series at leads of 1\,h, 6\,h, and 12\,h. The short horizon is therefore the next hourly sample. (Config and dataloader use integer hourly steps $[1, 6, 12]$.) A 72-hour history window (\(T=72\)) is used at each forecast origin.
+Forecast targets use integer hourly leads of 1\,h, 6\,h, and 12\,h on the hourly GOES series (config/dataloader: $[1,6,12]$). A 72-hour history window (\(T=72\)) is used at each forecast origin.
 
 \begin{table}[h]
 \centering
@@ -391,9 +391,27 @@ Training minimises a composite objective: a primary multi-horizon residual loss 
 Beyond the physics \(B_z\) gate, we tested cathode--anode
 (voltage-threshold activation), radiotrophic (cumulative-dose-inspired
 nonlinearity), and spectral-residual gating as architectural probes under
-the same backbone. None outperformed the \(B_z\) gate consistently; they
-are retained in the repository as negative controls rather than primary
-design variants.
+the same backbone. Under the same fifteen-seed protocol, cathode--anode, cathode--spectral,
+and radiotrophic gates each reached mean PE$_{1\mathrm{h}}\approx0.987$
+and PE$_{6\mathrm{h}}\approx0.909$--$0.911$ (Table~\ref{tab:altgates} /
+\texttt{results/alt\_gates\_summary.csv}). No variant consistently
+outperformed the others; main results therefore retain the physics
+$B_z$ gate for interpretability.
+
+\begin{table}[h]
+\caption{Alternative Physics Gates PE (fifteen seeds)}
+\label{tab:altgates}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Gate & PE\(_{1\mathrm{h}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) \\
+\midrule
+cathode & $0.987$ & $0.910$ & $0.868$ \\
+cathode+spec & $0.987$ & $0.909$ & $0.867$ \\
+radiotrophic & $0.987$ & $0.911$ & $0.868$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Baselines and Training}
 We compare against Vanilla Transformer (same residual heads, no delay/gate), a
@@ -441,7 +459,7 @@ Brackets: bootstrap 95\% CI where available. Bold: best primary system in column
 \label{tab:main}
 \begin{tabular}{lcccc}
 \toprule
-System & PE\(_{45\mathrm{min}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) & PE\(_{\mathrm{st},6\mathrm{h}}\) \\
+System & PE\(_{1\mathrm{h}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) & PE\(_{\mathrm{st},6\mathrm{h}}\) \\
 \midrule
 LSTM
   & \(0.961\,[0.957,0.964]\) & \(0.889\,[0.885,0.892]\) & \(0.853\,[0.851,0.856]\) & \(0.827\,[0.823,0.831]\) \\
@@ -563,12 +581,12 @@ Strong (\(\mathrm{Dst} \le -100\)) & 206 & 0.708 \\
 Gaussian noise was added to standardized solar-wind inputs at test time
 (\(\sigma\in\{0,0.2,0.5,1.0,1.5,2.0\}\)) for Transformer, STORM-Bz,
 hybrid, and ensemble systems over fifteen seeds.
-At \(\sigma=2\), Transformer PE\(_{45\mathrm{min}}\) falls from about
+At \(\sigma=2\), Transformer PE\(_{1\mathrm{h}}\) falls from about
 \(0.96\) to about \(0.61\), whereas STORM remains near \(0.96\).
 At 6\,h the ensemble and STORM also lose less skill than the Transformer.
 Zeroing feature groups (no \(B_z\); no velocity/density; no rolling
 averages) produces the same qualitative ordering (detailed tables provided in the accompanying code repository): STORM holds
-PE\(_{45\mathrm{min}}\) near \(0.986\mbox{--}0.987\) while the Transformer drops more
+PE\(_{1\mathrm{h}}\) near \(0.986\mbox{--}0.987\) while the Transformer drops more
 when derived rolling channels are removed.
 These checks are controlled diagnostics, not a claim of immunity to
 arbitrary sensor failure.
@@ -798,8 +816,8 @@ confirming that the original $[0.5, 1.5]$\,h constraint is not a performance bot
 \end{figure}
 
 An architecture-matched Transformer control ($d_{\mathrm{model}}=128$, two layers)
-reached mean PE$_{45\mathrm{min}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across
-fifteen seeds; bagging the fifteen matched seeds yields PE$_{45\mathrm{min}}=0.986$,
+reached mean PE$_{1\mathrm{h}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across
+fifteen seeds; bagging the fifteen matched seeds yields PE$_{1\mathrm{h}}=0.986$,
 PE$_{6\mathrm{h}}=0.919$, and PE$_{12\mathrm{h}}=0.877$. Relative to STORM-Bz
 ($0.986$ / $0.897$ / $0.851$), matching encoder capacity shrinks the short-horizon
 gap and shifts the multi-horizon advantage toward the larger Transformer under
@@ -841,8 +859,9 @@ active phase may differ. The contribution of this paper is a controlled
 multi-seed comparison and a documented transfer recipe, not a claim to the
 highest PE in the literature.
 
-\\section{Limitations}\n\label{sec:limits}\nAll reported leads are integer hours on hourly data; sub-hour (e.g.\ true 1\,h) supervision would require higher-cadence flux labels.\n
+\section{Limitations}
 \label{sec:limits}
+All reported leads are integer hours on hourly data; sub-hour (e.g.\ 45\,min) supervision would require higher-cadence flux labels.
 Main GOES tables use fifteen seeds with bootstrap intervals; some
 secondary diagnostics (individual case windows, older single-seed
 robustness grids) remain thinner. PE values are not interchangeable with
