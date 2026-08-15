@@ -61,14 +61,10 @@ The IEEE Access version includes additional controlled experiments:
    Mean PE<sub>1h</sub> stayed in the narrow range 0.9859–0.9862 and PE<sub>6h</sub> stayed in 0.900–0.902.  
    The original [0.5, 1.5] h constraint is therefore not a performance bottleneck.
 
-3. **Alternate Physics Gates**  
-   We evaluate three alternate physics gate architectures to explore different physical inductive biases (15 seeds each). All variants retain exceptional 1-hour performance and achieve strong multi-horizon forecasting, indicating the overall framework is robust to the exact choice of physical proxy.
-   
-   | Model Variant | PE (1 h) | PE (6 h) | PE (12 h) |
-   |---------------|-----------|----------|-----------|
-   | `storm_cathode` | 0.987 ± 0.000 | 0.910 ± 0.004 | 0.868 ± 0.004 |
-   | `storm_cathode_spec` | 0.987 ± 0.000 | 0.909 ± 0.003 | 0.867 ± 0.004 |
-   | `storm_radiotrophic` | 0.987 ± 0.000 | 0.911 ± 0.003 | 0.868 ± 0.004 |
+3. **Supplementary gates (Access)**  
+   - **RDG** / **RDG-S** / **SDG**: alternative nonlinearities (see `results/GATE_NAME_MAP.md`)
+   - Mean PE ≈ 0.987 / 0.91 / 0.87; none replaces STORM-Bz as the primary system
+   - Artifacts: `checkpoints/alt_gates/`, `results/alt_gates_summary.csv`
 
 Result summaries are in:
 

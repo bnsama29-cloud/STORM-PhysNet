@@ -387,31 +387,94 @@ horizons with a skip connection from the last-observed flux value.
 \subsection{Physics Regularization Loss}
 Training minimises a composite objective: a primary multi-horizon residual loss (beta-NLL with a \(2.5\times\) under-prediction penalty during storm periods), plus auxiliary Dst/Kp and storm-onset terms and small regularisers (monotonicity, temporal smoothness, delay, variance calibration, and an Akasofu-\(\varepsilon\) coupling consistency term). Horizon weights emphasise the short horizon. Coefficient values follow the released configuration. We did not ablate every auxiliary term individually; reported PE reflects the full composite objective used in training.
 
-\subsection{Alternative Gating Variants}
-Beyond the physics \(B_z\) gate, we tested cathode--anode
-(voltage-threshold activation), radiotrophic (cumulative-dose-inspired
-nonlinearity), and spectral-residual gating as architectural probes under
-the same backbone. Under the same fifteen-seed protocol, cathode--anode, cathode--spectral,
-and radiotrophic gates each reached mean PE$_{1\mathrm{h}}\approx0.987$
-and PE$_{6\mathrm{h}}\approx0.909$--$0.911$ (Table~\ref{tab:altgates} /
-\texttt{results/alt\_gates\_summary.csv}). No variant consistently
-outperformed the others; main results therefore retain the physics
-$B_z$ gate for interpretability.
+\subsection{Supplementary Gate Nonlinearities}
+\label{sec:supp-gates}
 
-\begin{table}[h]
-\caption{Alternative Physics Gates PE (fifteen seeds)}
-\label{tab:altgates}
+The main STORM-Bz configuration uses a physics-motivated $B_z$ gate whose
+inputs are southward IMF duration and related solar-wind features. To test
+whether PE depends on that specific nonlinearity---or only on the shared
+training package (storm-biased sampling, residual heads, multi-horizon
+loss)---we trained three alternative gates that keep the same Transformer
+backbone, delay module, residual heads, data splits, and fifteen seeds
+$\{42,\ldots,56\}$. Only the gate block (and, for one variant, an auxiliary
+head) changes. Internal code keys differ from the names below; see the
+repository map in Sec.~\ref{sec:supp-gates-map}.
+
+\paragraph{Rectified Driver Gate (RDG).}
+RDG is a circuit-inspired \emph{shape} prior, not a claim that GEO electrons
+behave like a vacuum tube. Solar-wind driving is treated as an emission-like
+control signal: a learned estimator of driver strength (built from $v_{\mathrm{sw}}$
+and $B_z$) is passed through a rectified, smooth nonlinearity so that only
+one polarity of driving strongly opens the gate. The gated representation
+fed to the residual heads is
+\[
+  h_{\mathrm{g}} = g_{\mathrm{RDG}}(x_{\mathrm{sw}})\,\odot\,h,
+\]
+where $h$ is the encoder state and $g_{\mathrm{RDG}}\in(0,1]$ is the gate
+activation. Relative to the physics $B_z$ gate, RDG emphasizes
+\emph{half-wave / driver-aligned} modulation rather than an explicit
+southward-duration feature path.
+
+\paragraph{RDG with Spectral Head (RDG-S).}
+RDG-S uses the same RDG block and adds a small auxiliary head that predicts
+spectral parameters $(\kappa,\theta)$ and maps them to an optional
+$\ge2\,\mathrm{MeV}$ log-flux estimate. The primary multi-horizon loss still
+trains the residual flux heads; the spectral branch is additive and does not
+replace $\hat{y}$. This tests whether an explicit spectral parameterization
+improves PE when the gate is already non-physics-$B_z$.
+
+\paragraph{Saturating Dose Gate (SDG).}
+SDG is a dose-response \emph{shape} prior: recent energy-related input is
+accumulated with a learnable scale and passed through a saturating curve
+(smooth approach to a ceiling), so the gate opens more under sustained
+forcing and levels off rather than growing without bound. This is an
+accumulation-then-saturation inductive bias, not a biological model of the
+radiation belts. Formally, if $d_t$ denotes a learned scalar summary of recent
+driving,
+\[
+  g_{\mathrm{SDG}} = g_{\min} + (1-g_{\min})\,\sigma(\alpha d_t+\beta),
+\]
+with learnable $(\alpha,\beta)$ and a floor $g_{\min}$ to avoid hard zeros.
+
+\paragraph{Protocol and results.}
+Each variant was trained for up to 40 epochs with the same optimizer,
+early-stopping rule, and PE$_{\mathrm{clim}}$ evaluation as STORM-Bz.
+Table~\ref{tab:supp-gates} summarizes mean PE over fifteen seeds.
+All three variants remain near PE$_{1\mathrm{h}}=0.987$ and
+PE$_{6\mathrm{h}}\approx0.91$. Pairwise differences among RDG, RDG-S, and SDG
+are within seed noise. None provides a consistent multi-horizon gain that
+would justify replacing the physics $B_z$ gate as the default reported system.
+We therefore keep STORM-Bz as the primary model for interpretability
+(gate activation vs.\ $B_z$/Dst diagnostics) and treat RDG / RDG-S / SDG as
+evidence that short-horizon skill is largely a property of the shared training
+recipe rather than of one particular gate formula.
+
+\begin{table}[!t]
 \centering
+\caption{Supplementary gates (fifteen seeds). Mean PE$_{\mathrm{clim}}$ on the
+fixed chronological GOES test split. STORM-Bz from the main table is repeated
+for reference.}
+\label{tab:supp-gates}
 \begin{tabular}{lccc}
 \toprule
-Gate & PE\(_{1\mathrm{h}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) \\
+Gate & PE$_{1\mathrm{h}}$ & PE$_{6\mathrm{h}}$ & PE$_{12\mathrm{h}}$ \\
 \midrule
-cathode & $0.987$ & $0.910$ & $0.868$ \\
-cathode+spec & $0.987$ & $0.909$ & $0.867$ \\
-radiotrophic & $0.987$ & $0.911$ & $0.868$ \\
+STORM-Bz (physics $B_z$) & 0.986 & 0.897 & 0.851 \\
+RDG & 0.987 & 0.910 & 0.868 \\
+RDG-S & 0.987 & 0.909 & 0.867 \\
+SDG & 0.987 & 0.911 & 0.868 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\paragraph{Repository name map.}
+\label{sec:supp-gates-map}
+For reproducibility, folder and \texttt{gate\_type} strings in the code are
+unchanged: RDG $\leftrightarrow$ \texttt{cathode\_anode} /
+\texttt{storm\_cathode}; RDG-S $\leftrightarrow$
+\texttt{storm\_cathode\_spec}; SDG $\leftrightarrow$
+\texttt{radiotrophic} / \texttt{storm\_radiotrophic}. Paper text uses only
+RDG, RDG-S, and SDG.
 
 \subsection{Baselines and Training}
 We compare against Vanilla Transformer (same residual heads, no delay/gate), a

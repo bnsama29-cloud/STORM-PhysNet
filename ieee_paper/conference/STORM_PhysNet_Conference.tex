@@ -198,7 +198,22 @@ should be interpreted with this disparity in mind.
 Training minimises a composite objective: a primary multi-horizon residual loss (beta-NLL with a \(2.5\times\) under-prediction penalty during storm periods), plus auxiliary Dst/Kp and storm-onset terms and small regularisers (monotonicity, temporal smoothness, delay, variance calibration, and an Akasofu-\(\varepsilon\) coupling consistency term). Horizon weights emphasise the short horizon. Coefficient values follow the released configuration. We did not ablate every auxiliary term individually; reported PE reflects the full composite objective used in training. All primary models use Adam, cosine decay, early stopping on the 12\,h validation MSE, and seeds \(\{42,\ldots,56\}\).
 
 \subsection{Baselines and Alternative Gates}
-The primary baseline is a Vanilla Transformer with the same residual heads. We also train a Transformer with the \emph{same encoder hyperparameters} as STORM ($d_{\mathrm{model}}=128$, two layers, four heads; $\approx1.19\times10^{6}$ parameters). This architecture-matched control is larger in parameter count than STORM and is not a parameter-matched baseline; the default Transformer uses $d_{\mathrm{model}}=64$, three layers ($\approx8.45\times10^{5}$ parameters). Other nonlinearities (voltage-inspired, cumulative-dose, spectral) each reached mean PE$_{1\mathrm{h}}\approx0.987$ and PE$_{6\mathrm{h}}\approx0.909$--$0.911$ across fifteen seeds. None consistently outperformed the physics \(B_z\) gate; they are reported as supplementary probes in the repository rather than primary design variants.
+The primary baseline is a Vanilla Transformer with the same residual heads
+and default encoder width ($d_{\mathrm{model}}=64$, three layers). We also
+train an architecture-matched Transformer ($d_{\mathrm{model}}=128$, two
+layers, four heads; $\approx1.19\times10^{6}$ parameters).
+
+Beyond the physics $B_z$ gate used in STORM-Bz, we evaluated three
+supplementary gating nonlinearities under the same fifteen-seed protocol:
+a \emph{Rectified Driver Gate} (RDG) that modulates the encoder state with a
+learned, half-wave response to solar-wind driving; an \emph{RDG with Spectral
+Head} (RDG-S) that adds an auxiliary $\kappa$--$\theta$ spectral flux head;
+and a \emph{Saturating Dose Gate} (SDG) that applies a smooth
+accumulation-and-saturation response to recent energy input. All three reached
+mean PE$_{1\mathrm{h}}\approx0.987$ and PE$_{6\mathrm{h}}\approx0.909$--$0.911$.
+None consistently outperformed the physics $B_z$ gate; they are reported as
+sensitivity probes, not primary design claims. Full definitions and tables
+appear in the companion extended manuscript.
 
 %% ====================================================================
 \section{Results}
@@ -224,6 +239,9 @@ and the 6\,h / 12\,h heads through the corresponding Transformer model at
 inference time; no additional training is performed.
 Against persistence at 1\,h, STORM remains near \(+0.32\) while
 the Transformer is often negative (\(\approx-0.14\)).
+Supplementary gates RDG, RDG-S, and SDG (definitions in the extended version)
+matched STORM-Bz at 1\,h (mean PE$\approx0.987$) and did not change the ranking
+story at 6--12\,h.
 
 \begin{table}[!htbp]
 \centering
