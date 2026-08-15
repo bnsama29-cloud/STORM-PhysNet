@@ -14,6 +14,9 @@ Models and seed coverage:
 - storm_no_physics: 42–56 (15 seeds)
 - bagged_tf: 42–56 (15 seeds)
 - grasp: 42–56 (15 seeds, fine-tuned heads)
+- alt_gates/storm_cathode: 42–56 (15 seeds, JSON metrics only)
+- alt_gates/storm_cathode_spec: 42–56 (15 seeds, JSON metrics only)
+- alt_gates/storm_radiotrophic: 42–56 (15 seeds, JSON metrics only)
 
 Transformer baseline: d_model=64, 3 layers, 4 heads (not capacity-matched to STORM).
 Transformer matched: d_model=128, 2 layers, 4 heads (~1.19e6 params; capacity-matched control).

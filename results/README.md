@@ -15,6 +15,7 @@
 | `matched_tf_grasp.csv` | GRASP fine-tuning training logs (Architecture-matched Transformer) |
 | `matched_tf_noise.csv` | Noise robustness results (Architecture-matched Transformer) |
 | `matched_tf_pers.csv` | Operational Persistence results |
+| `alt_gates_summary.csv` | Alternate physics gates performance (15 seeds) |
 
 15 architecture-matched Transformer checkpoints (`.pt`) **are** released in this repository in the `checkpoints/transformer_matched/` directory.  
 Code + `datasets/` + these CSVs are enough to verify the reported PE values.
