@@ -365,7 +365,7 @@ PE improve substantially after adaptation.}
 %% ====================================================================
 \textbf{Data scope.} Main GOES tables use fifteen seeds with bootstrap intervals; secondary diagnostics (individual case windows, residual histograms) are illustrative. GRASP covers a limited declining-phase window; performance during solar maximum is unknown.
 
-\textbf{Comparability.} PE values are not interchangeable with daily-fluence scores reported elsewhere without matching cadence, energy channel, and baseline~\cite{b11,b12}. The default Transformer baseline is not architecture-matched to STORM; a matched control ($d_{\mathrm{model}}=128$, two layers) shows that capacity and bagging account for much of the multi-horizon PE movement.
+\textbf{Comparability.} PE values are not interchangeable with daily-fluence scores reported elsewhere without matching cadence, energy channel, and baseline~\cite{b11,b12}. The default Transformer baseline is not architecture-matched to STORM; a matched control ($d_{\mathrm{model}}=128$, two layers) shows that encoder width/depth and bagging account for much of the multi-horizon PE movement.
 
 \textbf{Ensemble.} Ensemble skill uses a fixed \(\alpha^*=0.3\) selected on the validation split; the test-set \(\alpha\) curve is diagnostic only. Online \(\alpha\) adaptation is not claimed.
 
