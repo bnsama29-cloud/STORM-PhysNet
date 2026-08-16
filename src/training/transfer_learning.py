@@ -1,6 +1,6 @@
 """
 GOES → GRASP Transfer Learning.
-YOUR ORIGINAL IDEA: First published cross-satellite transfer learning
+First published cross-satellite transfer learning
 for GEO electron flux at Indian longitude.
 
 Strategy:

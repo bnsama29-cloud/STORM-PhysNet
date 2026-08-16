@@ -1,5 +1,5 @@
 """
-Physics-Informed Loss Function — YOUR ORIGINAL IDEA, fully elaborated.
+Physics-Informed Loss Function — fully elaborated.
 
 Complete loss:
     L_total = Σ_h w_h · L_primary(h)       [weighted MSE per horizon]
@@ -58,7 +58,7 @@ class PhysicsInformedLoss(nn.Module):
     """
     Complete physics-informed loss for STORM-PhysNet.
 
-    Physics terms YOUR ORIGINAL IDEA — provides paper novelty over
+    Physics terms provide paper novelty over
     all existing LSTM/Transformer papers which use plain MSE.
     """
 
@@ -106,7 +106,7 @@ class PhysicsInformedLoss(nn.Module):
         return nll_weighted.mean()
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Physics Constraints (YOUR ORIGINAL IDEA)
+    # Physics Constraints
     # ──────────────────────────────────────────────────────────────────────────
 
     def _epsilon_coupling_loss(

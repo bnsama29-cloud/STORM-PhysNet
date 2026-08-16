@@ -36,8 +36,8 @@ On hourly GOES--OMNI data with fifteen random initializations of the same chrono
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
 1-hour. On GSAT-19 GRASP, fine-tuning raises 6\,h PE from
-0.449 to 0.599 (paired \(p=7.6\times10^{-7}\)) and 12\,h PE from
-0.182 to 0.517 (\(p=3.6\times10^{-10}\)) across fifteen seeds.
+0.449 to 0.599 (paired \(p = 7.6\times10^{-7}\)) and 12\,h PE from
+0.182 to 0.517 (\(p = 3.6\times10^{-10}\)) across fifteen seeds.
 Bootstrap confidence intervals, paired tests, and evaluation scripts
 are released so that later work can reuse the same splits and PE
 definitions.
@@ -177,7 +177,7 @@ injection~\cite{b2}. A lightweight gate maps a short vector of
 southward-\(B_z\) statistics through an MLP and a clamped sigmoid to a
 per-channel modulation vector \(\mathbf{g}\in[g_{\min},1]^{d_{\mathrm{model}}}\), which is multiplied element-wise with the encoder representation
 before the forecast heads. Gate activations differ between storm and quiet windows
-(Mann--Whitney \(p=1.2\times10^{-14}\), see Section~\ref{sec:results}); the absolute range
+(Mann--Whitney \(p = 1.2\times10^{-14}\), see Section~\ref{sec:results}); the absolute range
 is narrow.
 
 \subsection{Transformer Backbone and Multi-Horizon Heads}
@@ -331,7 +331,7 @@ PE\(_{1\mathrm{h}}\) near \(0.986\mbox{--}0.987\) while the Transformer drops mo
 when derived rolling channels are removed.
 
 \subsection{Interpretability}
-Predicted delays are constrained to \([0.5, 1.5]\,\mathrm{h}\). Across the full test set the delay distribution shows a non-trivial fraction of windows concentrating near the upper bound (\(1.5\,\mathrm{h}\)), with the remainder spread across the interior of the constraint band. This saturation at the upper bound indicates the box constraint is active; we therefore treat the histogram as a constrained aggregate rather than evidence of an unconstrained recovered transit time. Gate activations differ between storm and quiet windows (Mann--Whitney \(p=1.2\times10^{-14}\)); the absolute range remains narrow, so the shift is statistically clear but modest in magnitude. Fig.~\ref{fig:case_enhancement} shows an illustrative enhancement event in which the model tracks the multi-day flux build-up and recovery more closely than persistence.
+Predicted delays are constrained to \([0.5, 1.5]\,\mathrm{h}\). Across the full test set the delay distribution shows a non-trivial fraction of windows concentrating near the upper bound (\(1.5\,\mathrm{h}\)), with the remainder spread across the interior of the constraint band. This saturation at the upper bound indicates the box constraint is active; we therefore treat the histogram as a constrained aggregate rather than evidence of an unconstrained recovered transit time. Gate activations differ between storm and quiet windows (Mann--Whitney \(p = 1.2\times10^{-14}\)); the absolute range remains narrow, so the shift is statistically clear but modest in magnitude. Fig.~\ref{fig:case_enhancement} shows an illustrative enhancement event in which the model tracks the multi-day flux build-up and recovery more closely than persistence.
 Permutation importance ranks \(B_z\) first among inputs, consistent with the
 gate design. Residual histograms on the test set widen under storm conditions for both
 models; STORM reduces the short-horizon bias relative to persistence but
