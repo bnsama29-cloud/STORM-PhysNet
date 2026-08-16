@@ -87,8 +87,9 @@ STORM-PhysNet/
 ├── requirements.txt
 ├── .gitignore
 ├── configs/
-│   └── config.yaml                 # Model, data, training hyperparameters
-│                                   # forecast_horizons: [1.0, 6.0, 12.0]
+│   ├── config.yaml                 # Model, data, training hyperparameters (STORM)
+│   │                               # forecast_horizons: [1.0, 6.0, 12.0]
+│   └── config_transformer_baseline.yaml # Parameters for default 64-dim 3-layer TF
 ├── src/
 │   ├── data/
 │   │   ├── cdf_reader.py           # GOES CDF + OMNI readers (paper pipeline)

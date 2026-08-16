@@ -26,13 +26,13 @@ model:
   gate_type: bz
   use_spectral_head: false
   bz_gate:
-    enabled: true
-  d_model: 128
+    enabled: false
+  d_model: 64
   delay:
-    enabled: true
+    enabled: false
   heads:
     hidden_dim: 64
-  name: STORM-PhysNet
+  name: Transformer-Baseline
   ssm:
     d_state: 64
     dropout: 0.1
@@ -41,7 +41,7 @@ model:
     d_ff: 256
     dropout: 0.1
     n_heads: 4
-    n_layers: 2
+    n_layers: 3
 
 training:
   batch_size: 64
