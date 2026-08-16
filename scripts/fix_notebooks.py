@@ -14,8 +14,8 @@ def process_file(file_path):
             if 'run_training("storm_bz"' in src and 'storm_cathode' not in src:
                 # Add the 3 new models
                 new_lines = [
-                    '\nrun_training("storm_cathode", model_type="storm_physnet", gate_type="cathode")\n',
-                    'run_training("storm_cathode_spec", model_type="storm_physnet", gate_type="cathode_spec")\n',
+                    '\nrun_training("storm_cathode", model_type="storm_physnet", gate_type="cathode_anode")\n',
+                    'run_training("storm_cathode_spec", model_type="storm_physnet", gate_type="cathode_anode", use_spectral_head=True)\n',
                     'run_training("storm_radiotrophic", model_type="storm_physnet", gate_type="radiotrophic")\n'
                 ]
                 cell['source'].extend(new_lines)
