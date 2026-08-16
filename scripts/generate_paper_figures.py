@@ -7,7 +7,7 @@ import json
 def plot_horizon_pe():
     print("Generating fig_horizon_pe.png...")
     # Read the summary json
-    with open(r'f:\Downloads\ieee_final_fixed\results\summary.json', 'r') as f:
+    with open(Path("results/summary.json"), 'r') as f:
         summary = json.load(f)
     
     # We will just plot a basic bar chart using the data we have
@@ -28,12 +28,12 @@ def plot_horizon_pe():
                 # Try to extract the PE values.
                 # If they were renamed to PE_1h, use that
                 y = [
-                    data.get("PE_1h_mean", data.get("PE_45min_mean", 0)),
+                    data.get("PE_1h_mean", 0),
                     data.get("PE_6h_mean", 0),
                     data.get("PE_12h_mean", 0)
                 ]
                 err = [
-                    data.get("PE_1h_std", data.get("PE_45min_std", 0)),
+                    data.get("PE_1h_std", 0),
                     data.get("PE_6h_std", 0),
                     data.get("PE_12h_std", 0)
                 ]
@@ -45,8 +45,8 @@ def plot_horizon_pe():
     ax.set_title("Prediction Efficiency across Horizons")
     ax.legend()
     
-    os.makedirs(r'f:\Downloads\ieee_final_fixed\figures', exist_ok=True)
-    plt.savefig(r'f:\Downloads\ieee_final_fixed\figures\fig_horizon_pe.png')
+    os.makedirs(Path("figures"), exist_ok=True)
+    plt.savefig(Path("figures/fig_horizon_pe.png"))
     plt.close()
 
 if __name__ == "__main__":

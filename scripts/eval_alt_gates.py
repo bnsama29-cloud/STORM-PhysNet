@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 ROOTS = [
-    Path("f:/Downloads/ieee_final_fixed/results/alt_gates"),
+    Path("results/alt_gates"),
 ]
 
 rows = []
@@ -19,9 +19,6 @@ if not rows:
 
 df = pd.DataFrame(rows).drop_duplicates(subset=["model", "seed"], keep="last")
 
-# tolerate old key PE_45min if any leftover files
-if "PE_1h" not in df.columns and "PE_45min" in df.columns:
-    df["PE_1h"] = df["PE_45min"]
 
 print("Rows:", len(df))
 print(df.groupby("model")["seed"].count())

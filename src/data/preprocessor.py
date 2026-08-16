@@ -42,8 +42,8 @@ class Preprocessor:
         max_gap_hours: int = 3,
         log_flux_min: float = -2.0,
         log_flux_max: float = 6.0,
-        train_frac: float = 8 / 11,
-        val_frac: float = 1 / 11,
+        train_frac: float = 0.70,
+        val_frac: float = 0.15,
         year_split: dict = None,
     ):
         self.spike_sigma   = spike_sigma

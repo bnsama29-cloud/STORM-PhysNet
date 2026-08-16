@@ -1,7 +1,6 @@
 """
 GOES → GRASP Transfer Learning.
-First published cross-satellite transfer learning
-for GEO electron flux at Indian longitude.
+Cross-satellite transfer learning for GEO electron flux at Indian longitude (GSAT-19 GRASP).
 
 Strategy:
   Phase 1: Pre-train full STORM-PhysNet on 11 years of GOES data
@@ -34,7 +33,7 @@ from src.evaluation.metrics import StormEvaluator
 class GRASPTransferLearner:
     """
     Fine-tunes a pre-trained STORM-PhysNet on GRASP data.
-    Implements YOUR original GOES→GRASP transfer learning idea.
+    Implements GOES→GRASP transfer learning via frozen encoder + fine-tuned heads.
     """
 
     def __init__(

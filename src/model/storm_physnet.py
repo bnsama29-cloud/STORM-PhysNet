@@ -3,12 +3,12 @@ STORM-PhysNet: The complete integrated model.
 Storm-aware Physics-Informed Network for GEO Electron Flux Forecasting.
 
 Architecture flow:
-  1. Adaptive Propagation Delay (YOUR IDEA) — shifts SW by learnable tau
+  1. Adaptive Propagation Delay — shifts SW by learnable tau
   2. iTransformer Encoder — extracts SW feature correlations
   3. SSM Encoder — captures flux history (slow decay dynamics)
   4. Cross-Modal Attention — flux queries SW (causal coupling)
-  5. Bz Physics Gate (YOUR IDEA) — storm-driven signal amplification
-  6. Multi-Horizon Heads — physics residual prediction (YOUR IDEA: 3 horizons)
+  5. Bz Physics Gate — storm-driven signal amplification
+  6. Multi-Horizon Heads — physics residual prediction (3 horizons)
      + Auxiliary: Dst, Kp, Storm onset (multi-task)
 
 This file assembles the full model and supports:
@@ -339,7 +339,7 @@ class STORMPhysNet(nn.Module):
         
         self._last_gate_values = gate_values
 
-        # ── 6. Multi-horizon predictions (YOUR IDEA) ──────────────────────────
+        # ── 6. Multi-horizon predictions ──────────────────────────────────────────────
         outputs = self.heads(gated_repr, y_persist)
         outputs["tau"]         = tau
         outputs["gate_values"] = gate_values

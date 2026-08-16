@@ -229,4 +229,3 @@ See the official data-provider terms for GOES, OMNI, and GRASP redistribution.
 **Samarth BN**  
 RV College of Engineering, Bengaluru, India  
 Email: samarthbn.ec25@rvce.edu.in
-```

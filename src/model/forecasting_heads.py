@@ -1,7 +1,7 @@
 """
 Multi-Horizon Forecasting Heads with Physics Residual Prediction.
 
-Multi-horizon heads (30-45min, 6h, 12h).
+Multi-horizon heads (1 h, 6 h, 12 h).
 NEW: Physics residual prediction — model predicts CORRECTION over persistence.
 
 Physics residual formula:
@@ -54,7 +54,7 @@ class MultiHorizonHeads(nn.Module):
     """
     Three forecast heads with physics residual prediction.
 
-    Horizons: [1h (~30-45 min), 6h, 12h]
+    Horizons: [1 h, 6 h, 12 h]
     Each head predicts the RESIDUAL over the persistence baseline.
 
     Horizon conditioning: previously all three flux heads consumed the exact
