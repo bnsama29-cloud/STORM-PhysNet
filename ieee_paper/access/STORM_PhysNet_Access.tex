@@ -308,7 +308,7 @@ Storm windows use Dst \(\le -50\,\mathrm{nT}\).
 \subsection{GRASP Dataset}
 GRASP aboard GSAT-19 provides GEO radiation measurements at Indian longitude
 (\(\approx\)82\(^\circ\)E). We use the available record covering approximately
-July 2017 to September 2018---a 15-month interval in the declining phase of Solar
+July 2017 to September 2018---an $\approx$14--15 month interval in the declining phase of Solar
 Cycle 24. After alignment, GRASP supplies fewer co-located input channels than the
 GOES pipeline; this feature mismatch is a proximate cause of zero-shot failure and
 motivates input-projection adaptation. Storm windows on the GRASP test set are
@@ -398,7 +398,7 @@ loss)---we trained three alternative gates that keep the same Transformer
 backbone, delay module, residual heads, data splits, and fifteen seeds
 $\{42,\ldots,56\}$. Only the gate block (and, for one variant, an auxiliary
 head) changes. Internal code keys differ from the names below; see the
-repository map in Sec.~\ref{sec:supp-gates-map}.
+repository map in the ``Repository name map'' paragraph below.
 
 \paragraph{Rectified Driver Gate (RDG).}
 RDG is a circuit-inspired \emph{shape} prior, not a claim that GEO electrons
@@ -408,7 +408,7 @@ and $B_z$) is passed through a rectified, smooth nonlinearity so that only
 one polarity of driving strongly opens the gate. The gated representation
 fed to the residual heads is
 \[
-  h_{\mathrm{g}} = g_{\mathrm{RDG}}(x_{\mathrm{sw}})\,\odot\,h,
+  h_{\mathrm{g}} = g_{\mathrm{RDG}}(v_{\mathrm{sw}}, B_z)\,\odot\,h,
 \]
 where $h$ is the encoder state and $g_{\mathrm{RDG}}\in(0,1]$ is the gate
 activation. Relative to the physics $B_z$ gate, RDG emphasizes
