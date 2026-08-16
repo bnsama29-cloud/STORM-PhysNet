@@ -138,14 +138,14 @@ class FluxDataset(Dataset):
 
 def make_storm_biased_sampler(
     dataset: FluxDataset,
-    storm_weight: float = 12.0,
+    storm_weight: float = 10.0,
 ) -> WeightedRandomSampler:
     """
     Returns a WeightedRandomSampler that oversamples storm windows.
 
     storm_weight : float
         How many times more likely to sample a storm window vs quiet.
-        Default 12x → storm fraction goes from ~5% to >50% of batches.
+        Default 10x → storm fraction goes from ~5% to ~50% of batches.
     """
     flags   = dataset.window_storm_flags
     weights = np.where(flags > 0, storm_weight, 1.0)
@@ -164,7 +164,7 @@ def make_dataloaders(
     test_df: pd.DataFrame,
     seq_len: int = 72,
     batch_size: int = 64,
-    storm_weight: float = 12.0,
+    storm_weight: float = 10.0,
     num_workers: int = 0,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
     """
