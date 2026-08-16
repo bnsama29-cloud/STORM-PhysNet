@@ -3,12 +3,12 @@ STORM-PhysNet: The complete integrated model.
 Storm-aware Physics-Informed Network for GEO Electron Flux Forecasting.
 
 Architecture flow:
-  1. Adaptive Propagation Delay — shifts SW by learnable tau
+  1. Adaptive Propagation Delay (YOUR IDEA) — shifts SW by learnable tau
   2. iTransformer Encoder — extracts SW feature correlations
   3. SSM Encoder — captures flux history (slow decay dynamics)
   4. Cross-Modal Attention — flux queries SW (causal coupling)
-  5. Bz Physics Gate — storm-driven signal amplification
-  6. Multi-Horizon Heads — physics residual prediction (3 horizons)
+  5. Bz Physics Gate (YOUR IDEA) — storm-driven signal amplification
+  6. Multi-Horizon Heads — physics residual prediction (YOUR IDEA: 3 horizons)
      + Auxiliary: Dst, Kp, Storm onset (multi-task)
 
 This file assembles the full model and supports:
@@ -23,14 +23,13 @@ from typing import Optional
 
 from src.model.propagation_delay     import AdaptivePropagationDelay
 from src.model.bz_gate               import BzPhysicsGate
+from src.model.analogy_gates         import RadiotrophicGate, CathodeAnodeGate
 from src.model.forecasting_heads     import MultiHorizonHeads
+from src.model.spectral_head         import SpectralParamHead, spectral_shape_regularizer
 from src.model.itransformer_encoder  import iTransformerEncoder
 from src.model.ssm_encoder           import SSMEncoder
 from src.model.cross_modal_attention import CrossModalAttention
-
-from src.model.experimental.analogy_gates         import RadiotrophicGate, CathodeAnodeGate
-from src.model.experimental.spectral_head         import SpectralParamHead, spectral_shape_regularizer
-from src.model.experimental.magnetopause_geometry import MagnetopauseGeometryFeatures
+from src.model.magnetopause_geometry import MagnetopauseGeometryFeatures
 
 
 class STORMPhysNet(nn.Module):
@@ -98,9 +97,7 @@ class STORMPhysNet(nn.Module):
         self.use_spectral_head = use_spectral_head
         self.use_magnetopause  = use_magnetopause
 
-        # 1. Adaptive Propagation Delay
-        #    We apply an L1->Earth propagation delay to SW features,
-        #    conditioned on wind speed.
+        # ── 1. Adaptive Propagation Delay ──────────────
         self.prop_delay = AdaptivePropagationDelay(
             tau_init_hours=1.0,
             tau_min_hours=0.5,
@@ -201,8 +198,7 @@ class STORMPhysNet(nn.Module):
                 gate_min=0.1,
             )
 
-        # 6. Multi-Horizon Heads (3 horizons)
-        #    Predict residual over persistence for each horizon.
+        # ── 6. Multi-Horizon Heads (3 horizons) ─────────
         self.heads = MultiHorizonHeads(
             d_model=d_model,
             hidden_dim=hidden_dim,
