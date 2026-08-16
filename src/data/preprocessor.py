@@ -71,7 +71,7 @@ class Preprocessor:
         train_df, val_df, test_df : pd.DataFrame
             Scaled feature DataFrames with TARGET_COL present.
         """
-        df = self._clean(raw_df)
+        df = self._clean(raw_df, is_fit=True)
         df = self._engineer_features(df)
         # Final NaN sweep after feature engineering (rolling stats may introduce NaNs)
         df = df.replace([np.inf, -np.inf], np.nan)
@@ -132,7 +132,16 @@ class Preprocessor:
     # Internal methods
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _clean(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _despike(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        if "log_flux" in df.columns:
+            df["log_flux"] = self._hampel(df["log_flux"])
+        for col in ["vsw", "bz", "density"]:
+            if col in df.columns:
+                df[col] = self._hampel(df[col], window=5, sigma=self.spike_sigma)
+        return df
+
+    def _clean(self, df: pd.DataFrame, is_fit: bool = False) -> pd.DataFrame:
         df = df.copy()
 
         # 0. Convert raw flux to log_flux if reading real CDF data
@@ -172,14 +181,15 @@ class Preprocessor:
         if "pdyn" in df.columns:
             df["pdyn"] = df["pdyn"].clip(0.01, 50)
 
-        # 2. Spike removal (Hampel identifier on log_flux)
-        if "log_flux" in df.columns:
-            df["log_flux"] = self._hampel(df["log_flux"])
-
-        # 3. Solar wind spike removal
-        for col in ["vsw", "bz", "density"]:
-            if col in df.columns:
-                df[col] = self._hampel(df[col], window=5, sigma=self.spike_sigma)
+        # 2 & 3. Spike removal (Hampel filter)
+        if is_fit:
+            train, val, test = self._split(df)
+            train = self._despike(train)
+            val = self._despike(val)
+            test = self._despike(test)
+            df = pd.concat([train, val, test]).sort_index()
+        else:
+            df = self._despike(df)
 
         # 4. Gap interpolation (linear, max gap)
         df = df.interpolate(method="linear", limit=self.max_gap_hours)
