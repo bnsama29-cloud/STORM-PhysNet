@@ -882,9 +882,9 @@ An architecture-matched Transformer control ($d_{\mathrm{model}}=128$, two layer
 reached mean PE$_{1\mathrm{h}}=0.981$ and PE$_{6\mathrm{h}}=0.907$ across
 fifteen seeds; bagging the fifteen matched seeds yields PE$_{1\mathrm{h}}=0.986$,
 PE$_{6\mathrm{h}}=0.919$, and PE$_{12\mathrm{h}}=0.877$. Relative to STORM-Bz
-($0.986$ / $0.897$ / $0.851$), matching encoder capacity shrinks the short-horizon
+($0.986$ / $0.897$ / $0.851$), matching encoder width/depth shrinks the short-horizon
 gap and shifts the multi-horizon advantage toward the larger Transformer under
-bagging. This reinforces that single-model PE gaps are protocol-plus-capacity
+bagging. This reinforces that single-model PE gaps are protocol-plus-width/depth
 effects rather than proof that the delay or gate modules are individually necessary.
 
 At 6--12\,h, a plain Transformer remains competitive as a
