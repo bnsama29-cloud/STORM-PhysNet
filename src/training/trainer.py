@@ -28,7 +28,7 @@ class Trainer:
 
     Features
     --------
-    - Storm-biased batch sampling (10× storm oversampling)
+    - Storm-biased batch sampling (default 12× storm oversampling, see config.yaml)
     - Physics-informed loss with asymmetric storm penalty
     - Cosine annealing LR schedule with warmup
     - Early stopping on validation MSE
