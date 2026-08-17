@@ -225,7 +225,7 @@ learned, half-wave response to solar-wind driving; an \emph{RDG with Spectral
 Head} (RDG-S) that adds an auxiliary $\kappa$--$\theta$ spectral flux head;
 and a \emph{Saturating Dose Gate} (SDG) that applies a smooth
 accumulation-and-saturation response to recent energy input. All three reached
-mean PE$_{1\mathrm{h}}\approx0.987$ and PE$_{6\mathrm{h}}\approx0.909$--$0.911$.
+mean PE$_{1\mathrm{h}}\approx0.987$ and PE$_{6\mathrm{h}}\approx0.906$.
 None consistently outperformed the physics $B_z$ gate; they are reported as
 sensitivity probes, not primary design claims. Full definitions and tables
 appear in the companion extended manuscript.
@@ -383,7 +383,7 @@ Relative to a strong Transformer, the clearest single-model gain is short-horizo
 reliability (PE$_{1\mathrm{h}}$ and PE$_{\mathrm{pers}}$).
 Among systems evaluated here, seed-bagged STORM-Bz (and the RDG/SDG probes)
 reaches the strongest multi-horizon PE
-(PE$_{6\mathrm{h}}\approx0.910$--$0.911$, PE$_{12\mathrm{h}}\approx0.870$).
+(PE$_{6\mathrm{h}}\approx0.906$, PE$_{12\mathrm{h}}\approx0.870$).
 An architecture-matched bagged Transformer remains competitive
 ($0.908$ / $0.861$) but does not dominate under this full retrain.
 Robustness checks and GRASP fine-tuning support operational motivation beyond a pure leaderboard PE number; for instance, the architecture-matched baseline achieves a marginal persistence prediction efficiency (PE\(_{\mathrm{pers}}\)) of \(0.053 \pm 0.148\) at 1\,h, illustrating the difficulty of solidly outperforming operational persistence models. Furthermore, under synthetic Gaussian noise injection (\(\sigma=1.0\)), the 6\,h PE of the matched baseline drops to \(0.825 \pm 0.011\), highlighting the need for structurally robust architectures during degraded sensor conditions.
