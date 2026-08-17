@@ -132,7 +132,7 @@ STORM-PhysNet/
 │   ├── table_grasp_storm_bz.csv     # GRASP domain transfer table
 │   ├── ablation_final_table.csv     # Delay and physics-informed gates ablation
 │   ├── alt_gates_summary.csv        # PE for alternative physical gates
-│   ├── ensemble_summary.json        # Ensemble bagging combinations
+│   ├── ensemble_summary.json        # val-selected α* linear mix (not seed-bagging)
 │   ├── grasp_summary.csv            # GRASP metrics summary
 │   ├── all_seed_results_full.csv    # The complete 15-seed data block
 │   └── README.md
