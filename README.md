@@ -16,12 +16,7 @@ STORM-PhysNet is a Transformer-based model for multi-horizon forecasting of >2 M
 
 The model is evaluated under a rigorous multi-seed protocol and includes zero-shot + fine-tuned transfer experiments to GSAT-19 GRASP (Indian longitude).
 
-## Reproduction notes
 
-- **Note:** Headline PE tables come from the August 2026 full Kaggle retrain (15 seeds × 10 systems). See `results/table_main_means.csv` and `results/all_seed_results_full.csv`.
-- Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** architecture-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
-
----
 
 ## Key Results (Summary)
 
@@ -75,7 +70,7 @@ The IEEE Access version includes additional controlled experiments:
 3. **Supplementary gates (Access)**  
    - **RDG** / **RDG-S** / **SDG**: alternative nonlinearities (experimental variants)
    - Mean PE ≈ 0.986 / 0.901 / 0.855; none replaces STORM-Bz as the primary system
-   - Artifacts: `checkpoints/alt_gates/`, `results/alt_gates/`
+   - Artifacts: `checkpoints/storm_cathode*/`, `checkpoints/storm_radiotrophic/`, and `results/alt_gates_summary.csv`
 
 Result summaries are in:
 
@@ -116,7 +111,6 @@ STORM-PhysNet/
 │   ├── training/
 │   │   ├── trainer.py              # Main training loop (Adam, early stop, seeds)
 │   │   ├── physics_loss.py
-│   │   ├── horizon_physics_loss.py
 │   │   └── transfer_learning.py    # GRASP fine-tune helpers
 │   └── evaluation/
 │       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
@@ -204,10 +198,9 @@ Sample files are included under `datasets/` for convenience. For full archives a
 
 ## Reproduction notes
 
-- **Note:** Headline PE tables come from `results/*.csv` and released checkpoints; the notebook is a pipeline scaffold, not a one-click 15-seed reproduction.
-- `src/data/synthetic_generator.py` and `storm_augmentor.py` are **not** part of the paper pipeline.
+- **Note:** Headline PE tables come from the August 2026 full Kaggle retrain (15 seeds × 10 systems). The released notebook is a pipeline scaffold, not a one-click 15-seed reproduction. See `results/table_main_means.csv` and `results/all_seed_results_full.csv`.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** architecture-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
-- An architecture-matched Transformer control (`d_model=128`, 2 layers, 4 heads) was trained for fifteen seeds; checkpoints are under `checkpoints/transformer_matched/seed_{42..56}/` and results under `results/transformer_matched_*`.
+- An architecture-matched Transformer control (`d_model=128`, 2 layers, 4 heads) was trained for fifteen seeds; checkpoints are under `checkpoints/transformer_matched/seed_{42..56}/`.
 - Best checkpoints for all main models and seeds 42–56 are included under `checkpoints/`.
 
 ---
