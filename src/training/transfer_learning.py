@@ -3,7 +3,7 @@ GOES → GRASP Transfer Learning.
 Cross-satellite transfer learning for GEO electron flux at Indian longitude (GSAT-19 GRASP).
 
 Strategy:
-  Phase 1: Pre-train full STORM-PhysNet on 11 years of GOES data
+  Phase 1: Pre-train full STORM-PhysNet on ~10 years of GOES data
   Phase 2: Freeze encoder (propagation delay, iTransformer, SSM,
            cross-modal attention, Bz gate)
   Phase 3: Fine-tune forecasting heads only on 1-2 years of GRASP data
