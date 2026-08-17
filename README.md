@@ -174,7 +174,7 @@ The notebook supports two modes:
 
 The papers use public datasets from NOAA NCEI (GOES-15), NASA OMNIWeb (OMNI), and ISSDC (GSAT-19 GRASP).
 
-Sample files are included under `datasets/` for convenience. For full archives and redistribution terms, please use the official sources:
+Sample files for GOES and GRASP are included under `datasets/` for convenience (raw OMNI solar wind data must be downloaded directly). For full archives and redistribution terms, please use the official sources:
 
 - GOES-15: https://www.ngdc.noaa.gov/stp/satellite/goes/
 - OMNI: https://omniweb.gsfc.nasa.gov/

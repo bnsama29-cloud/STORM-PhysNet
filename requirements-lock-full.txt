@@ -1,5 +1,4 @@
-﻿absl-py==2.5.0
-aider-install==0.2.0
+absl-py==2.5.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.5
 aiosignal==1.4.0
