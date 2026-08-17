@@ -378,12 +378,12 @@ for both models; STORM does not eliminate storm-time residual variance, but
 it reduces the short-horizon bias relative to persistence discussed above.
 
 \subsection{Interpretability}
-\begin{figure}[!htbp]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_physics_tau_hist.png}
+\includegraphics[width=0.95\textwidth]{figures/fig_physics_tau_hist.png}
 \caption{Fraction of predicted propagation delays \(\tau\) near the constraint bounds across fifteen seeds. The blue bars show the interior fraction, red bars show the fraction near the upper bound (\(1.5\,\mathrm{h}\)), and green bars show the fraction near the lower bound (\(0.5\,\mathrm{h}\)). The saturation at the upper bound indicates the box constraint is active.}
 \label{fig:delay}
-\end{figure}
+\end{figure*}
 
 \begin{figure}[!htbp]
 \centering
@@ -397,15 +397,15 @@ Fig.~\ref{fig:physics_scatter} relates the two trainable physics modules to
 familiar solar-wind drivers; these panels are diagnostic, not a claim that
 \(\tau\) recovers a unique physical constant on every window.
 
-\begin{figure}[!htbp]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_physics_gate_activation.png}
+\includegraphics[width=0.95\textwidth]{figures/fig_physics_gate_activation.png}
 \caption{Physics-module diagnostics on the GOES test set: predicted delay
 \(\tau\) against solar-wind speed, and gate activation against southward
 \(B_z\) statistics. Delays remain inside the imposed \([0.5,1.5]\,\mathrm{h}\)
 band; gate values rise when southward IMF is sustained.}
 \label{fig:physics_scatter}
-\end{figure}
+\end{figure*}
 
 \begin{figure}[!htbp]
 \centering
@@ -506,16 +506,16 @@ especially against persistence. Controlled ablations that remove the delay, the 
 
 As detailed in Section~\ref{sec:results}, the ablations together indicate that the short-horizon gain is produced by the overall training protocol rather than by any single runtime module. The delay and gate act as structured inductive biases during training; once the model is trained, removing either module at inference does not erase the 1\,h PE\(_{\mathrm{clim}}\) edge over the Transformer. STORM-PhysNet should therefore be understood primarily as a carefully engineered training and multi-horizon recipe that includes interpretable physics-inspired components. To test whether the original upper bound of \(1.5\,\mathrm{h}\) was limiting performance, we retrained STORM with wider delay constraints (\(2.0, 2.5, 3.0, 3.5,\) and \(4.0\,\mathrm{h}\)) across fifteen seeds (sixteen seeds for the \(2.0\,\mathrm{h}\) bound). Mean PE$_{1\mathrm{h}}$ remained in the narrow range \(0.9859\)--\(0.9862\) and PE$_{6\mathrm{h}}$ remained in the range \(0.900\)--\(0.902\) for all bounds (see Fig.~\ref{fig:wider_delay}). The original \([0.5, 1.5]\,\mathrm{h}\) constraint is therefore not a performance bottleneck.
 
-\begin{figure}[!htbp]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=0.85\columnwidth]{figures/wider_delay_pe6h.png}
+\includegraphics[width=0.95\textwidth]{figures/wider_delay_pe6h.png}
 \caption{Wider delay ablation: mean PE$_{6\mathrm{h}}$ versus delay upper bound
 (error bars show seed standard deviation). Vertical dashed lines mark the
 paper baselines STORM-Bz (\(0.900\)) and Transformer (\(0.895\)).
 PE$_{6\mathrm{h}}$ remains stable across upper bounds from \(1.5\,\mathrm{h}\) to \(4.0\,\mathrm{h}\),
 confirming that the original \([0.5, 1.5]\,\mathrm{h}\) constraint is not a performance bottleneck.}
 \label{fig:wider_delay}
-\end{figure}
+\end{figure*}
 
 An architecture-matched Transformer control (\(d_{\mathrm{model}}=128\), two layers)
 reached mean PE$_{1\mathrm{h}}=0.980$ and PE$_{6\mathrm{h}}=0.895$ across
