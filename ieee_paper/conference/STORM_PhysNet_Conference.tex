@@ -139,10 +139,12 @@ path at \(\approx 82^\circ\)E is the transfer setting studied here.
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/fig_system_architecture.png}
-\caption{STORM-PhysNet data flow: OMNI solar wind and GOES flux enter a learnable
-L1--Earth delay and a temporal Transformer encoder ($d_{\mathrm{model}}=128$,
-two layers, four heads). A $B_z$-conditioned gate modulates the representation;
-three residual heads emit simultaneous 1\,h, 6\,h, and 12\,h log-flux forecasts.}
+\caption{STORM-PhysNet: OMNI solar wind is delay-aligned ($\tau\in[0.5,1.5]\,\mathrm{h}$)
+and concatenated with GOES log-flux (=72\,\mathrm{h}$), projected to
+{\mathrm{model}}=128$, and encoded by a 2-layer, 4-head Transformer.
+A $-conditioned gate modulates the final representation; three residual heads
+with shared horizon embeddings (=16$) predict corrections over persistence
+at 1\,h, 6\,h, and 12\,h.}
 \label{fig:arch}
 \end{figure*}
 
