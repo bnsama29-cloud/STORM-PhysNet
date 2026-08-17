@@ -10,7 +10,7 @@ This directory strictly contains the final, aggregated evaluation tables and met
 
 ### Ensembles & Bagging
 - `table_bagged.csv` - Ensemble Bagged prediction efficiency across models.
-- `ensemble_summary.json` - Metrics for the validation-selected linear ensemble ($\alpha^*=0.3$).
+- `ensemble_summary.json` - Metrics for the val-selected $\alpha^*$ (mostly 0.4-0.6) and fixed $\alpha=0.3$ diagnostic.
 
 ### Ablations & Alternate Gates
 - `ablation_final_table.csv` - Performance impact of removing the delay and physics-informed gates.

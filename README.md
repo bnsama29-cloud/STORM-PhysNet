@@ -18,7 +18,7 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ## Reproduction notes
 
-- **Note:** Headline PE tables come from the August 2026 full Kaggle retrain (15 seeds × 10 systems). See `results/paper_export/`.
+- **Note:** Headline PE tables come from the August 2026 full Kaggle retrain (15 seeds × 10 systems). See `results/table_main_means.csv` and `results/all_seed_results_full.csv`.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** architecture-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
 
 ---
@@ -80,10 +80,10 @@ The IEEE Access version includes additional controlled experiments:
 Result summaries are in:
 
 ```text
-results/transformer_matched_summary.json
-results/transformer_matched_bagged_pe.json
-results/transformer_matched_seed_pe.csv
-results/wider_delay_results.csv
+results/table_main_means.csv
+results/table_bagged.csv
+results/ensemble_summary.json
+results/table_grasp_storm_bz.csv
 results/alt_gates_summary.csv
 ```
 
@@ -124,19 +124,17 @@ STORM-PhysNet/
 │   └── STORM_PhysNet_Colab.ipynb   # Master reproduction notebook
 ├── figures/                         # ALL paper figures
 ├── results/
-│   ├── summary.json
-│   ├── ablation_final_table.csv
-│   ├── all_results.csv
-│   ├── wider_delay_results.csv
-│   ├── bagged_tf_results.csv
-│   ├── transformer_matched_summary.json
-│   ├── transformer_matched_bagged_pe.json
-│   ├── transformer_matched_seed_pe.csv
+│   ├── table_main_means.csv         # Mean Performance across 15 seeds for baselines vs STORM
+│   ├── table_main_stats.csv         # Standard deviations for the main evaluation metrics
+│   ├── table_means_bootstrap_ci.csv # Bootstrap confidence intervals
+│   ├── table_bagged.csv             # Ensemble Bagged prediction efficiency
+│   ├── table_parameter_counts.csv   # Model parameter sizes
+│   ├── table_grasp_storm_bz.csv     # GRASP domain transfer table
+│   ├── ablation_final_table.csv     # Delay and physics-informed gates ablation
 │   ├── alt_gates_summary.csv        # PE for alternative physical gates
-│   ├── grasp_metrics_summary.csv    # STORM / main-paper GRASP metrics
-│   ├── matched_tf_grasp.csv         # Architecture-matched TF GRASP zero-shot / fine-tune (seeds 42–56)
-│   ├── matched_tf_noise.csv         # Architecture-matched TF noise robustness
-│   ├── matched_tf_pers.csv          # Architecture-matched TF PE_pers at 1 h
+│   ├── ensemble_summary.json        # Ensemble bagging combinations
+│   ├── grasp_summary.csv            # GRASP metrics summary
+│   ├── all_seed_results_full.csv    # The complete 15-seed data block
 │   └── README.md
 ├── checkpoints/
 │   ├── README.md
