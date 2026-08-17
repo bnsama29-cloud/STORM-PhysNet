@@ -8,7 +8,7 @@ data:
   grasp_cdf_dir: datasets/grasp
   num_workers: 2
   sequence_length: 72
-  synthetic:
+  synthetic: # Retained for unit-test purposes only; paper uses real GOES/OMNI data
     grasp_longitude_offset: 0.15
     seed: 42
     storm_frequency: 0.004

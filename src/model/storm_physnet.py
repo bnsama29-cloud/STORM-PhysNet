@@ -29,7 +29,7 @@ from src.model.spectral_head         import SpectralParamHead, spectral_shape_re
 from src.model.itransformer_encoder  import iTransformerEncoder
 from src.model.ssm_encoder           import SSMEncoder
 from src.model.cross_modal_attention import CrossModalAttention
-from src.model.magnetopause_geometry import MagnetopauseGeometryFeatures
+from src.model.magnetopause_geometry import MagnetopauseGeometryFeatures # Optional; disabled in paper runs
 
 
 class STORMPhysNet(nn.Module):

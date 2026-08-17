@@ -87,7 +87,7 @@ results/table_grasp_storm_bz.csv
 results/alt_gates_summary.csv
 ```
 
-These experiments can also be reproduced from the master notebook ([Open in Colab](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Colab.ipynb)).
+These experiments can also be reproduced from the master notebook ([Open in Colab](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Master.ipynb)).
 
 ---
 
@@ -121,7 +121,7 @@ STORM-PhysNet/
 │   └── evaluation/
 │       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
 ├── notebooks/
-│   └── STORM_PhysNet_Colab.ipynb   # Master reproduction notebook
+│   └── STORM_PhysNet_Master.ipynb  # Master reproduction notebook
 ├── figures/                         # ALL paper figures
 ├── results/
 │   ├── table_main_means.csv         # Mean Performance across 15 seeds for baselines vs STORM
@@ -162,7 +162,7 @@ use `backbone: transformer` and the physics Bz gate only.
 
 ## Quick Start (Google Colab – Recommended)
 
-1. Open [`notebooks/STORM_PhysNet_Colab.ipynb`](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Colab.ipynb) in Google Colab.
+1. Open [`notebooks/STORM_PhysNet_Master.ipynb`](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Master.ipynb) in Google Colab.
 2. Set runtime to **T4 GPU**.
 3. Run all cells.
 

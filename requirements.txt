@@ -6,3 +6,4 @@ cdflib
 matplotlib
 scikit-learn
 scipy
+tensorboard
