@@ -149,7 +149,7 @@ STORM-PhysNet/
 - All paper figures are under `figures/`.
 
 ## Experimental code (not in paper tables)
-`src/model/experimental/` (analogy gates, spectral head, magnetopause)
+RDG/RDG-S/SDG gate implementations live in `src/model/analogy_gates.py` and `spectral_head.py`.
 and optional SSM/iTransformer paths are exploratory. Reported results
 use `backbone: transformer` and the physics Bz gate only.
 
