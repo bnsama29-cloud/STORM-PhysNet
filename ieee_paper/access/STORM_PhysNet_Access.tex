@@ -380,20 +380,20 @@ it reduces the short-horizon bias relative to persistence discussed above.
 \section{Results}
 \label{sec:results}
 
-Unless noted, all GOES numbers below are PE{\mathrm{clim}}$ on the fixed
+Unless noted, all GOES numbers below are PE$_{\mathrm{clim}}$ on the fixed
 chronological test split, aggregated over fifteen seeds (42--56).
 Test PE is computed once after training and is never used for model selection.
 
 \begin{table*}[!t]
 \centering
-\caption{GOES test PE{\mathrm{clim}}$ (seed mean). PE{\mathrm{pers},1\mathrm{h}}$ is
-skill versus persistence; PE{\mathrm{st},6\mathrm{h}}$ is restricted to storm-flagged
+\caption{GOES test PE$_{\mathrm{clim}}$ (seed mean). PE$_{\mathrm{pers},1\mathrm{h}}$ is
+skill versus persistence; PE$_{\mathrm{st},6\mathrm{h}}$ is restricted to storm-flagged
 hours. Bagged rows average predictions across fifteen seeds (true bagging).
 Bold: best single-model or bagged entry in each column among reported systems.}
 \label{tab:main}
 \begin{tabular}{lccccc}
 \toprule
-System & PE{1\mathrm{h}}$ & PE{6\mathrm{h}}$ & PE{12\mathrm{h}}$ & PE{\mathrm{st},6\mathrm{h}}$ & PE{\mathrm{pers},1\mathrm{h}}$ \\
+System & PE$_{1\mathrm{h}}$ & PE$_{6\mathrm{h}}$ & PE$_{12\mathrm{h}}$ & PE$_{\mathrm{st},6\mathrm{h}}$ & PE$_{\mathrm{pers},1\mathrm{h}}$ \\
 \midrule
 LSTM & 0.955 & 0.881 & 0.840 & 0.788 & $-1.19$ \\
 Transformer (default) & 0.978 & 0.895 & 0.845 & 0.797 & $-0.08$ \\
@@ -411,13 +411,13 @@ TF matched bagged & 0.984 & 0.908 & 0.861 & 0.831 & --- \\
 
 Table~\ref{tab:main} is the primary GOES leaderboard for this paper.
 The largest single-model separation versus the default Transformer is at 1\,h
-(PE{\mathrm{clim}}$ and especially PE{\mathrm{pers}}$). At 6--12\,h, seed means
+(PE$_{\mathrm{clim}}$ and especially PE$_{\mathrm{pers}}$). At 6--12\,h, seed means
 are close; multi-seed aggregation (bagging) provides the clearer multi-horizon lift.
 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=0.92\textwidth]{figures/fig_horizon_pe.png}
-\caption{Per-horizon PE{\mathrm{clim}}$ (seed mean $\pm$ std) for the main systems
+\caption{Per-horizon PE$_{\mathrm{clim}}$ (seed mean $\pm$ std) for the main systems
 in Table~\ref{tab:main}. Short-horizon separation is visible; 6\,h/12\,h means overlap
 more strongly across ablations.}
 \label{fig:horizon_pe}
@@ -490,12 +490,12 @@ PE improve substantially after adaptation.}
 \toprule
 Model & Parameters \\
 \midrule
-LSTM & .47\times10^{4}$ \\
-STORM-Bz / No-Delay / No-Gate / No-Physics & .43\times10^{5}$ \\
-RDG (cathode--anode gate) & .41\times10^{5}$ \\
-RDG-S (RDG + spectral head) & .51\times10^{5}$ \\
-Transformer (default) & .45\times10^{5}$ \\
-Transformer matched ({=}128$, 2 layers) & .19\times10^{6}$ \\
+LSTM & $5.47\times10^{4}$ \\
+STORM-Bz / No-Delay / No-Gate / No-Physics & $3.43\times10^{5}$ \\
+RDG (cathode--anode gate) & $3.41\times10^{5}$ \\
+RDG-S (RDG + spectral head) & $3.51\times10^{5}$ \\
+Transformer (default) & $8.45\times10^{5}$ \\
+Transformer matched ($d{=}128$, 2 layers) & $1.19\times10^{6}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -509,7 +509,7 @@ evidence for the delay/gate modules alone.
 \subsection{Alternative Gate Formulations}
 \label{sec:alt_gates}
 
-Beyond the default $ gate we evaluated three probes under the same
+Beyond the default $B_z$ gate we evaluated three probes under the same
 fifteen-seed protocol:
 \begin{itemize}
   \item \textbf{RDG} (rectified driver gate): cathode--anode style modulation driven by
@@ -519,15 +519,15 @@ fifteen-seed protocol:
 \end{itemize}
 Seed-mean PE values remain within noise of STORM-Bz at all three horizons
 (Table~\ref{tab:alt_gates}). We treat these variants as sensitivity checks on the
-gating nonlinearity, not as replacements for the default $ gate in the main claim.
+gating nonlinearity, not as replacements for the default $B_z$ gate in the main claim.
 
 \begin{table}[!t]
 \centering
-\caption{Alternative gates (seed-mean PE{\mathrm{clim}}$, fifteen seeds).}
+\caption{Alternative gates (seed-mean PE$_{\mathrm{clim}}$, fifteen seeds).}
 \label{tab:alt_gates}
 \begin{tabular}{lccc}
 \toprule
-Gate & PE{1\mathrm{h}}$ & PE{6\mathrm{h}}$ & PE{12\mathrm{h}}$ \\
+Gate & PE$_{1\mathrm{h}}$ & PE$_{6\mathrm{h}}$ & PE$_{12\mathrm{h}}$ \\
 \midrule
 STORM-Bz (default) & 0.986 & 0.900 & 0.854 \\
 RDG & 0.986 & 0.901 & 0.855 \\
