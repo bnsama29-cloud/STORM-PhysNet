@@ -18,26 +18,24 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ## Reproduction notes
 
-- **Note:** Headline PE tables come from `results/*.csv` and released checkpoints; the notebook is a pipeline scaffold, not a one-click 15-seed reproduction.
+- **Note:** Headline PE tables come from the August 2026 full Kaggle retrain (15 seeds × 10 systems). See `results/paper_export/`.
 - Transformer baseline uses default hyperparameters (`d_model=64`, 3 layers) and is **not** architecture-matched to STORM (`d_model=128`, 2 layers), as stated in the manuscripts.
 
 ---
 
 ## Key Results (Summary)
 
-| System | PE<sub>1h</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> | PE<sub>st,6h</sub> |
-|-------------------------|--------------------|-----------------|------------------|--------------------|
-| Transformer | 0.977 | 0.904 | 0.859 | 0.821 |
-| **Transformer matched (mean)** | **0.981** | **0.907** | **0.861** | — |
-| **Transformer matched (bagged)** | **0.986** | **0.919** | **0.877** | — |
-| STORM-Bz | **0.986** | 0.897 | 0.851 | 0.827 |
-| Ensemble (α*=0.3) | 0.983 | **0.911** | **0.870** | 0.839 |
-| STORM bagged (15 seeds) | **0.988** | 0.911 | 0.870 | **0.849** |
+| System | PE<sub>1h</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> |
+|-------------------------|--------------------|-----------------|------------------|
+| Transformer | 0.978 | 0.895 | 0.845 |
+| STORM-Bz | **0.986** | 0.900 | 0.854 |
+| STORM bagged (15 seeds) | **0.987** | **0.910** | **0.870** |
+| Transformer matched (bagged)| 0.984 | 0.908 | 0.861 |
 
-- Short-horizon gain is statistically significant (paired *p* = 0.002).
+- Short-horizon STORM gain vs Transformer (0.986 vs 0.978); PE_pers ≈ 0.31 vs negative.
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
 - Fine-tuning on GRASP raises 6 h PE from 0.449 → 0.599 and 12 h PE from 0.182 → 0.517.
-- Architecture-matched Transformer control ($d_{model}=128$, 2 layers) reaches mean PE (1 h) = 0.981 and PE (6 h) = 0.907; bagging yields 0.986 / 0.919 / 0.877.
+- Architecture-matched Transformer control reaches mean PE (1 h) = 0.980 and PE (6 h) = 0.895; bagging yields 0.984 / 0.908 / 0.861.
 
 ---
 
@@ -50,8 +48,8 @@ The IEEE Access version includes additional controlled experiments:
    ($d_{\mathrm{model}}=128$, two layers, four heads;
    $\approx1.19\times10^{6}$ parameters) was trained under the same
    chronological split and fifteen seeds (seeds 42–56).
-   - Mean: PE<sub>1h</sub>=0.981, PE<sub>6h</sub>=0.907, PE<sub>12h</sub>=0.861
-   - Bagged (15 seeds): PE<sub>1h</sub>=0.986, PE<sub>6h</sub>=0.919, PE<sub>12h</sub>=0.877
+   - Mean: PE<sub>1h</sub>=0.980, PE<sub>6h</sub>=0.895, PE<sub>12h</sub>=0.845
+   - Bagged (15 seeds): PE<sub>1h</sub>=0.984, PE<sub>6h</sub>=0.908, PE<sub>12h</sub>=0.861
    - Matching encoder hyperparameters shrinks the short-horizon gap versus STORM-Bz
      and improves multi-horizon PE under bagging.
 
@@ -62,8 +60,8 @@ The IEEE Access version includes additional controlled experiments:
 
 3. **Supplementary gates (Access)**  
    - **RDG** / **RDG-S** / **SDG**: alternative nonlinearities (see `results/GATE_NAME_MAP.md`)
-   - Mean PE ≈ 0.987 / 0.91 / 0.87; none replaces STORM-Bz as the primary system
-   - Artifacts: `checkpoints/alt_gates/`, `results/alt_gates_summary.csv`
+   - Mean PE ≈ 0.986 / 0.901 / 0.855; none replaces STORM-Bz as the primary system
+   - Artifacts: `checkpoints/alt_gates/`, `results/alt_gates/`
 
 Result summaries are in:
 
