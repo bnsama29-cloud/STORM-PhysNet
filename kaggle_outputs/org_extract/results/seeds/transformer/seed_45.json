@@ -1,0 +1,16 @@
+{
+  "account_id": 0,
+  "name": "transformer",
+  "seed": 45,
+  "model_type": "transformer",
+  "gate_type": "bz",
+  "ablation": "none",
+  "use_spectral_head": false,
+  "match_storm_capacity": false,
+  "n_params": 844803,
+  "epochs": 40,
+  "PE_1h": 0.977944016456604,
+  "PE_6h": 0.899485170841217,
+  "PE_12h": 0.8561122417449951,
+  "PE_pers_1h": -0.08610808849334717
+}

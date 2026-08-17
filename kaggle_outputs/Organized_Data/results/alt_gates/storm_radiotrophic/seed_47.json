@@ -1,0 +1,16 @@
+{
+  "account_id": 1,
+  "name": "storm_radiotrophic",
+  "seed": 47,
+  "model_type": "storm_physnet",
+  "gate_type": "radiotrophic",
+  "ablation": "none",
+  "use_spectral_head": false,
+  "match_storm_capacity": false,
+  "n_params": 343360,
+  "epochs": 40,
+  "PE_1h": 0.9860274791717529,
+  "PE_6h": 0.9040102958679199,
+  "PE_12h": 0.8597757816314697,
+  "PE_pers_1h": 0.3119468688964844
+}

@@ -1,0 +1,16 @@
+{
+  "account_id": 0,
+  "name": "storm_no_delay",
+  "seed": 46,
+  "model_type": "storm_physnet",
+  "gate_type": "bz",
+  "ablation": "no_delay",
+  "use_spectral_head": false,
+  "match_storm_capacity": false,
+  "n_params": 343391,
+  "epochs": 40,
+  "PE_1h": 0.9866983890533447,
+  "PE_6h": 0.8988780975341797,
+  "PE_12h": 0.8527747988700867,
+  "PE_pers_1h": 0.3449862599372864
+}

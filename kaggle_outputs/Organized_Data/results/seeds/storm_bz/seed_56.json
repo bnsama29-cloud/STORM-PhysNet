@@ -1,0 +1,16 @@
+{
+  "account_id": 2,
+  "name": "storm_bz",
+  "seed": 56,
+  "model_type": "storm_physnet",
+  "gate_type": "bz",
+  "ablation": "none",
+  "use_spectral_head": false,
+  "match_storm_capacity": false,
+  "n_params": 343391,
+  "epochs": 40,
+  "PE_1h": 0.9859211444854736,
+  "PE_6h": 0.9024030566215515,
+  "PE_12h": 0.8598554134368896,
+  "PE_pers_1h": 0.3067123293876648
+}

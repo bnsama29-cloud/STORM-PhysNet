@@ -1,0 +1,16 @@
+{
+  "account_id": 0,
+  "name": "lstm",
+  "seed": 42,
+  "model_type": "lstm",
+  "gate_type": "bz",
+  "ablation": "none",
+  "use_spectral_head": false,
+  "match_storm_capacity": false,
+  "n_params": 54723,
+  "epochs": 40,
+  "PE_1h": 0.9568650126457214,
+  "PE_6h": 0.8816449642181396,
+  "PE_12h": 0.8425160646438599,
+  "PE_pers_1h": -1.1241068840026855
+}

@@ -25,16 +25,30 @@ The model is evaluated under a rigorous multi-seed protocol and includes zero-sh
 
 ## Key Results (Summary)
 
-| System | PE<sub>1h</sub> | PE<sub>6h</sub> | PE<sub>12h</sub> |
-|-------------------------|--------------------|-----------------|------------------|
-| Transformer | 0.978 | 0.895 | 0.845 |
-| STORM-Bz | **0.986** | 0.900 | 0.854 |
-| STORM bagged (15 seeds) | **0.987** | **0.910** | **0.870** |
-| Transformer matched (bagged)| 0.984 | 0.908 | 0.861 |
+**Official GOES PE = Aug 2026 full retrain + eval zip; GRASP = new-weight transfer.**
 
-- Short-horizon STORM gain vs Transformer (0.986 vs 0.978); PE_pers ≈ 0.31 vs negative.
+### GOES seed-mean PE
+| Model | PE₁ₕ | PE₆ₕ | PE₁₂ₕ | PE_st,6h | PE_pers 1h |
+|-------|------|------|-------|----------|------------|
+| LSTM | 0.955 | 0.881 | 0.840 | 0.788 | −1.19 |
+| Transformer | 0.978 | 0.895 | 0.845 | 0.797 | −0.08 |
+| STORM-Bz | **0.986** | 0.900 | 0.854 | 0.812 | **+0.31** |
+| No-Delay | 0.987 | 0.902 | 0.855 | 0.809 | +0.36 |
+| No-Physics | 0.986 | 0.899 | 0.850 | 0.807 | +0.31 |
+| No-Gate | 0.986 | 0.900 | 0.856 | 0.819 | +0.32 |
+| TF matched | 0.980 | 0.895 | 0.845 | 0.809 | −0.01 |
+| RDG / RDG-S / SDG | 0.986 | ~0.901 | ~0.855 | ~0.815 | ~0.32 |
+
+### True bagged (n=15)
+| Model | PE₁ₕ | PE₆ₕ | PE₁₂ₕ | PE_st,6h |
+|-------|------|------|-------|----------|
+| STORM-Bz bagged | 0.987 | **0.910** | **0.870** | 0.836 |
+| TF matched bagged | 0.984 | 0.908 | 0.861 | 0.831 |
+| TF bagged | 0.984 | 0.907 | 0.861 | 0.816 |
+
+- Short-horizon STORM gain vs Transformer (0.986 vs 0.978); PE_pers ≈ +0.31 vs -0.08.
 - Ablations show that the gain comes primarily from the overall training protocol rather than any single physics module at inference.
-- Fine-tuning on GRASP raises 6 h PE from 0.449 → 0.599 and 12 h PE from 0.182 → 0.517.
+- Fine-tuning on GRASP raises 6 h PE from **0.740 → 0.841** and 12 h PE from **0.567 → 0.762**.
 - Architecture-matched Transformer control reaches mean PE (1 h) = 0.980 and PE (6 h) = 0.895; bagging yields 0.984 / 0.908 / 0.861.
 
 ---

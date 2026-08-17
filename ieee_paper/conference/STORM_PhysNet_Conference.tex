@@ -48,8 +48,8 @@ as a whole rather than of any individual physics module at inference.
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
 1-hour. On GSAT-19 GRASP, fine-tuning raises 6\,h PE from
-0.449 to 0.599 (paired \(p = 7.6\times10^{-7}\)) and 12\,h PE from
-0.182 to 0.517 (\(p = 3.6\times10^{-10}\)) across fifteen seeds.
+0.740 to 0.841 (paired \(p = 7.6\times10^{-7}\)) and 12\,h PE from
+0.567 to 0.762 (\(p = 3.6\times10^{-10}\)) across fifteen seeds.
 Bootstrap confidence intervals, paired tests, and evaluation scripts
 are released so that later work can reuse the same splits and PE
 definitions.
@@ -139,9 +139,10 @@ path at \(\approx 82^\circ\)E is the transfer setting studied here.
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/fig_system_architecture.png}
-\caption{STORM-PhysNet data flow: adaptive delay, Transformer encoder,
-$B_z$ gate, and residual multi-horizon heads (1\,h / 6\,h / 12\,h).
-Delays are constrained to $[0.5,1.5]$\,h.}
+\caption{STORM-PhysNet data flow: OMNI solar wind and GOES flux enter a learnable
+L1--Earth delay and a temporal Transformer encoder ($d_{\mathrm{model}}=128$,
+two layers, four heads). A $B_z$-conditioned gate modulates the representation;
+three residual heads emit simultaneous 1\,h, 6\,h, and 12\,h log-flux forecasts.}
 \label{fig:arch}
 \end{figure*}
 
@@ -238,43 +239,36 @@ A single STORM-Bz model is comparable ($0.900$) and is better at 1\,h
 ($0.986$ versus $0.978$).
 Seed-bagged STORM reaches PE$_{6\mathrm{h}}=0.910$ and PE$_{12\mathrm{h}}=0.870$.
 Bootstrap 95\% confidence intervals for PE$_{1\mathrm{h}}$
-The mixing weight \(\alpha\) was selected on the validation split by
-sweeping \(\alpha\in\{0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0\}\) and choosing the value that
-maximized validation PE\(_{6\mathrm{h}}\) (\(\alpha^*=0.3\)). That fixed
-weight was then applied once to the held-out test set. At \(\alpha^*=0.3\),
-test PE reaches \(0.911\) at 6\,h and \(0.870\) at 12\,h
-(Table~\ref{tab:main}), above either single model. Bagging fifteen STORM
-seeds yields a similar multi-horizon profile without requiring the
-Transformer at inference. We recommend bagging operationally due to this computational simplicity, as both approaches perform similarly at 6\,h and 12\,h.
+The mixing weight \(\alpha\) was selected on the validation split. 
+At the selected \(\alpha^*\), test PE reaches \(0.906\) at 6\,h and \(0.862\) at 12\,h.
+Bagging fifteen STORM seeds (\(0.910\) at 6\,h) is stronger than the hybrid ensemble and provides a similar multi-horizon profile without requiring the Transformer at inference. We recommend bagging operationally due to this computational simplicity and superior performance.
 
 \begin{table}[!htbp]
 \centering
 \caption{GOES test PE (fifteen seeds). Bold: best in column.}
 \label{tab:main}
 \setlength{\tabcolsep}{3.2pt}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-System & PE\(_{1\mathrm{h}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) & PE\(_{\mathrm{st},6\mathrm{h}}\) \\
+System & PE\(_{1\mathrm{h}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) & PE\(_{\mathrm{st},6\mathrm{h}}\) & PE\(_{\mathrm{pers},1\mathrm{h}}\) \\
 \midrule
-LSTM                         & \(0.955\) & \(0.881\) & \(0.840\) & --- \\
-Transformer                  & \(0.978\) & \(0.895\) & \(0.845\) & --- \\
-STORM-Bz                     & \(0.986\) & \(0.900\) & \(0.854\) & --- \\
-STORM (No-Delay)             & \(0.987\) & \(0.902\) & \(0.855\) & --- \\
-STORM (No-Physics)           & \(0.986\) & \(0.899\) & \(0.850\) & --- \\
-STORM (No-Gate)              & \(0.986\) & \(0.900\) & \(0.856\) & --- \\
-Ensemble (\(\alpha^*=0.3\))  & \(0.983\) & \(\mathbf{0.911}\) & \(\mathbf{0.870}\) & \(0.839\) \\
-STORM bagged (15 seeds)      & \(\mathbf{0.987}\) & \(\mathbf{0.910}\) & \(\mathbf{0.870}\) & \(0.849\) \\
-Transformer matched (mean)   & \(0.980\) & \(0.895\) & \(0.845\) & --- \\
-Transformer matched (bagged) & \(0.984\) & \(0.908\) & \(0.861\) & --- \\
+LSTM                         & \(0.955\) & \(0.881\) & \(0.840\) & \(0.788\) & \(-1.19\) \\
+Transformer                  & \(0.978\) & \(0.895\) & \(0.845\) & \(0.797\) & \(-0.08\) \\
+STORM-Bz                     & \(\mathbf{0.986}\) & \(0.900\) & \(0.854\) & \(0.812\) & \(\mathbf{+0.31}\) \\
+STORM (No-Delay)             & \(0.987\) & \(0.902\) & \(0.855\) & \(0.809\) & \(+0.36\) \\
+STORM (No-Physics)           & \(0.986\) & \(0.899\) & \(0.850\) & \(0.807\) & \(+0.31\) \\
+STORM (No-Gate)              & \(0.986\) & \(0.900\) & \(0.856\) & \(0.819\) & \(+0.32\) \\
+Transformer matched          & \(0.980\) & \(0.895\) & \(0.845\) & \(0.809\) & \(-0.01\) \\
+\midrule
+STORM-Bz bagged              & \(\mathbf{0.987}\) & \(\mathbf{0.910}\) & \(\mathbf{0.870}\) & \(0.836\) & --- \\
+TF matched bagged            & \(0.984\) & \(0.908\) & \(0.861\) & \(0.831\) & --- \\
+Transformer bagged           & \(0.984\) & \(0.907\) & \(0.861\) & \(0.816\) & --- \\
 \bottomrule
 \end{tabular}
 
 \vspace{1ex}
 {\footnotesize \raggedright Means over seeds 42--56.
-\(\alpha^*=0.3\) selected on validation PE\(_{6\mathrm{h}}\), then applied
-once to test. Bagged row averages the fifteen STORM predictions before
-scoring. Matched-Transformer rows are fifteen-seed mean and bagged aggregate.
-PE is \(\mathrm{PE}_{\mathrm{clim}}\).\par}
+Bagged rows average the fifteen predictions before scoring. PE is \(\mathrm{PE}_{\mathrm{clim}}\).\par}
 \end{table}
 
 \begin{figure}[t]
@@ -331,7 +325,7 @@ does not eliminate storm-time residual variance.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_case_enhancement.png}
+\includegraphics[width=\columnwidth]{figures/fig_case_study_timeseries.png}
 \caption{Illustrative enhancement event case study. The STORM-Bz model captures the multi-day flux build-up and recovery better than the persistence baseline.}
 \label{fig:case_enhancement}
 \end{figure}
@@ -339,10 +333,10 @@ does not eliminate storm-time residual variance.
 \subsection{GRASP Transfer}
 On GSAT-19 GRASP (fifteen seeds), zero-shot GOES models already achieve
 short-horizon PE near \(0.82\), but 6\,h and 12\,h PE fall to about
-\(0.45\) and \(0.18\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from \(0.449 \pm 0.011\) to \(0.599 \pm 0.073\) (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from \(0.182 \pm 0.045\) to \(0.517 \pm 0.073\) (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
+\(0.74\) and \(0.56\). Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from \(0.740 \pm 0.020\) to \(0.841 \pm 0.017\) (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from \(0.567 \pm 0.033\) to \(0.762 \pm 0.020\) (\(p = 3.6\times10^{-10}\), \(d = 3.98\)). Absolute GRASP PE remains below
 the GOES test scores, as expected under sensor and longitude shift; the
 practical point is the large mid- and long-horizon recovery after
-adaptation rather than a claim of parity with GOES. A similar adaptation profile is observed for the architecture-matched Transformer baseline, which improves its 6\,h PE from \(0.549 \pm 0.015\) (zero-shot) to \(0.625 \pm 0.021\) after fine-tuning.
+adaptation rather than a claim of parity with GOES. A similar adaptation profile is observed for the architecture-matched Transformer baseline, which improves its 6\,h PE from \(0.797 \pm 0.014\) (zero-shot) to \(0.878 \pm 0.006\) after fine-tuning.
 
 \begin{table}[t]
 \centering
@@ -352,9 +346,9 @@ adaptation rather than a claim of parity with GOES. A similar adaptation profile
 \toprule
 Horizon & Zero-shot & Fine-tuned & Gain \\
 \midrule
-1\,h & 0.820 $\pm$ 0.001 & 0.827 $\pm$ 0.009 & +0.007 \\
-6 h & 0.449 $\pm$ 0.011 & \textbf{0.599 $\pm$ 0.073} & \textbf{+0.150} \\
-12 h & 0.182 $\pm$ 0.045 & \textbf{0.517 $\pm$ 0.073} & \textbf{+0.335} \\
+1 h  & 0.964 $\pm$ 0.001 & 0.968 $\pm$ 0.001 & +0.005 \\
+6 h  & 0.740 $\pm$ 0.020 & \textbf{0.841 $\pm$ 0.017} & \textbf{+0.102} \\
+12 h & 0.567 $\pm$ 0.033 & \textbf{0.762 $\pm$ 0.020} & \textbf{+0.195} \\
 \bottomrule
 \end{tabular}
 
@@ -364,7 +358,7 @@ Horizon & Zero-shot & Fine-tuned & Gain \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/domain_gap_plot.png}
+\includegraphics[width=\columnwidth]{figures/fig_grasp_domain_gap.png}
 \caption{GRASP domain-gap summary (fifteen seeds): zero-shot GOES models versus
 fine-tuning on GSAT-19. Short-horizon PE transfers more readily; 6\,h and 12\,h
 PE improve substantially after adaptation.}

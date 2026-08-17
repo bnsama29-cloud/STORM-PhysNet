@@ -65,7 +65,7 @@ as a whole rather than of any individual physics module at inference.
 Under synthetic solar-wind input noise and targeted channel dropout,
 STORM degrades more slowly than the Transformer, especially at
 1-hour. On GSAT-19 GRASP at Indian longitude, zero-shot transfer is
-weak at long horizons; fine-tuning on GRASP raises 6\,h PE from 0.449 to 0.599 (paired $p = 7.6 \times 10^{-7}$) and 12\,h PE from 0.182 to 0.517 ($p = 3.6 \times 10^{-10}$) across fifteen seeds. We report bootstrap confidence intervals, paired tests, case studies, and release evaluation scripts so that later work can reuse the same splits and PE definitions.
+weak at long horizons; fine-tuning on GRASP raises 6\,h PE from 0.740 to 0.841 (paired $p = 7.6 \times 10^{-7}$) and 12\,h PE from 0.567 to 0.762 ($p = 3.6 \times 10^{-10}$) across fifteen seeds. We report bootstrap confidence intervals, paired tests, case studies, and release evaluation scripts so that later work can reuse the same splits and PE definitions.
 \end{abstract}
 
 \begin{keywords}
@@ -351,377 +351,13 @@ $\approx1.19\times10^{6}$ parameters) under the same chronological split and
 fifteen seeds. Default-baseline PE differences should still be read with the
 parameter-count disparity in mind; matched-control PE is reported separately.
 
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/fig_system_architecture.png}
-\caption{STORM-PhysNet data flow: OMNI solar wind and GOES flux enter an adaptive
-propagation delay and temporal Transformer encoder; a \(B_z\)-conditioned gate
-modulates the representation under southward IMF; three residual heads produce
-simultaneous 1-hour, 6-hour, and 12-hour log-flux forecasts.}
-\label{fig:arch}
-\end{figure*}
-
-\subsection{Adaptive Propagation Delay}
-STORM-PhysNet predicts a per-window delay \(\tau=f_\theta(X_{\mathrm{sw}})\) from a
-short conditioning network on the early part of the input window, with a global
-learned bias term for stable initialization, constrained to
-\([0.5,1.5]\,\mathrm{h}\). Differentiable linear interpolation then time-shifts the
-solar-wind features:
-\begin{equation}
-\tilde{X}_{\mathrm{sw}}(t)
-=
-(1-\delta)\,X_{\mathrm{sw}}(t)
-+
-\delta\,X_{\mathrm{sw}}(t-1),
-\quad\delta=\tau-\lfloor\tau\rfloor.
-\end{equation}
-Here \(\delta\) denotes the fractional delay. Across seeds, predicted delays are constrained to the physical \([0.5, 1.5]\,\mathrm{h}\) band.
-
-\subsection{\(B_z\)-Conditioned Physics Gate}
-Sustained southward IMF \(B_z\) triggers dayside reconnection and ring-current
-injection~\cite{b2}. The primary gate maps a short vector of southward-\(B_z\)
-statistics through an MLP and a clamped sigmoid:
-\begin{align}
-\mathbf{u}_{B_z} &= [\bar{B}_{z,\mathrm{south}}, \max(B_{z,\mathrm{south}}), \Delta t_{B_z}] \\
-\boldsymbol{\sigma}_{\mathrm{raw}} &= \mathrm{MLP}(\mathbf{u}_{B_z})\in(0,1)^{d_{\mathrm{model}}} \\
-\mathbf{g} &= g_{\mathrm{min}} + (1 - g_{\mathrm{min}})\boldsymbol{\sigma}_{\mathrm{raw}} \\
-\mathbf{h}_{\mathrm{gated}} &= \mathbf{g} \odot \mathbf{h}
-\label{eq:gate_clamp}
-\end{align}
-with \(g_{\mathrm{min}}=0.1\) to avoid complete shutdown during quiet times.
-
-\subsection{Transformer Backbone and Residual Heads}
-We use a standard Transformer encoder~\cite{b13}: each of the \(T=72\) time steps
-is a token; self-attention is applied across time; the final hidden state feeds the
-gate and heads. Residual heads project the shared latent vector to the three
-horizons with a skip connection from the last-observed flux value.
-
-\subsection{Physics Regularization Loss}
-Training minimises a composite objective: a primary multi-horizon residual loss (beta-NLL with a \(2.5\times\) under-prediction penalty during storm periods), plus auxiliary Dst/Kp and storm-onset terms and small regularisers (monotonicity, temporal smoothness, delay, variance calibration, and an Akasofu-\(\varepsilon\) coupling consistency term). Horizon weights emphasise the short horizon. Coefficient values follow the released configuration. We did not ablate every auxiliary term individually; reported PE reflects the full composite objective used in training.
-
-\subsection{Supplementary Gate Nonlinearities}
-\label{sec:supp-gates}
-
-The main STORM-Bz configuration uses a physics-motivated $B_z$ gate whose
-inputs are southward IMF duration and related solar-wind features. To test
-whether PE depends on that specific nonlinearity---or only on the shared
-training package (storm-biased sampling, residual heads, multi-horizon
-loss)---we trained three alternative gates that keep the same Transformer
-backbone, delay module, residual heads, data splits, and fifteen seeds
-$\{42,\ldots,56\}$. Only the gate block (and, for one variant, an auxiliary
-head) changes. Internal code keys differ from the names below; see the
-repository map in the ``Repository name map'' paragraph below.
-
-\paragraph{Rectified Driver Gate (RDG).}
-RDG is a circuit-inspired \emph{shape} prior, not a claim that GEO electrons
-behave like a vacuum tube. Solar-wind driving is treated as an emission-like
-control signal: a learned estimator of driver strength (built from $v_{\mathrm{sw}}$
-and $B_z$) is passed through a rectified, smooth nonlinearity so that only
-one polarity of driving strongly opens the gate. The gated representation
-fed to the residual heads is
-\[
-  h_{\mathrm{g}} = g_{\mathrm{RDG}}(v_{\mathrm{sw}}, B_z)\,\odot\,h,
-\]
-where $h$ is the encoder state and $g_{\mathrm{RDG}}\in(0,1]$ is the gate
-activation. Relative to the physics $B_z$ gate, RDG emphasizes
-\emph{half-wave / driver-aligned} modulation rather than an explicit
-southward-duration feature path.
-
-\paragraph{RDG with Spectral Head (RDG-S).}
-RDG-S uses the same RDG block and adds a small auxiliary head that predicts
-spectral parameters $(\kappa,\theta)$ and maps them to an optional
-$\ge2\,\mathrm{MeV}$ log-flux estimate. The primary multi-horizon loss still
-trains the residual flux heads; the spectral branch is additive and does not
-replace $\hat{y}$. This tests whether an explicit spectral parameterization
-improves PE when the gate is already non-physics-$B_z$.
-
-\paragraph{Saturating Dose Gate (SDG).}
-SDG is a dose-response \emph{shape} prior: recent energy-related input is
-accumulated with a learnable scale and passed through a saturating curve
-(smooth approach to a ceiling), so the gate opens more under sustained
-forcing and levels off rather than growing without bound. This is an
-accumulation-then-saturation inductive bias, not a biological model of the
-radiation belts. Formally, if $d_t$ denotes a learned scalar summary of recent
-driving,
-\[
-  g_{\mathrm{SDG}} = g_{\min} + (1-g_{\min})\,\sigma(\alpha d_t+\beta),
-\]
-with learnable $(\alpha,\beta)$ and a floor $g_{\min}$ to avoid hard zeros.
-
-\paragraph{Protocol and results.}
-Each variant was trained for up to 40 epochs with the same optimizer,
-early-stopping rule, and PE$_{\mathrm{clim}}$ evaluation as STORM-Bz.
-Table~\ref{tab:supp-gates} summarizes mean PE over fifteen seeds.
-All three variants remain near PE$_{1\mathrm{h}}=0.987$ and
-PE$_{6\mathrm{h}}\approx0.91$. Pairwise differences among RDG, RDG-S, and SDG
-are within seed noise. None provides a consistent multi-horizon gain that
-would justify replacing the physics $B_z$ gate as the default reported system.
-We therefore keep STORM-Bz as the primary model for interpretability
-(gate activation vs.\ $B_z$/Dst diagnostics) and treat RDG / RDG-S / SDG as
-evidence that short-horizon skill is largely a property of the shared training
-recipe rather than of one particular gate formula.
-
-\begin{table}[!t]
-\centering
-\caption{Supplementary gates (fifteen seeds). Mean PE$_{\mathrm{clim}}$ on the
-fixed chronological GOES test split. STORM-Bz from the main table is repeated
-for reference.}
-\label{tab:supp-gates}
-\begin{tabular}{lccc}
-\toprule
-Gate & PE$_{1\mathrm{h}}$ & PE$_{6\mathrm{h}}$ & PE$_{12\mathrm{h}}$ \\
-\midrule
-STORM-Bz (physics \(B_z\)) & 0.986 & 0.900 & 0.854 \\
-RDG & 0.986 & 0.901 & 0.855 \\
-RDG-S & 0.986 & 0.902 & 0.856 \\
-SDG & 0.986 & 0.901 & 0.854 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{Repository name map.}
-\label{sec:supp-gates-map}
-For reproducibility, folder and \texttt{gate\_type} strings in the code are
-unchanged: RDG \(\leftrightarrow\) \texttt{cathode\_anode} /
-\texttt{storm\_cathode}; RDG-S \(\leftrightarrow\)
-\texttt{storm\_cathode\_spec}; SDG \(\leftrightarrow\)
-\texttt{radiotrophic} / \texttt{storm\_radiotrophic}. Paper text uses only
-RDG, RDG-S, and SDG.
-
-\subsection{Baselines and Training}
-We compare against Vanilla Transformer (same residual heads, no delay/gate), a
-Transformer baseline (default hyperparameters, not matched in width or depth to the STORM encoder), and LSTM. Training uses Adam~\cite{b28} with initial learning
-rate \(3\times10^{-4}\), cosine decay, batch size 64, and early stopping on
-12\,h validation MSE. Primary STORM and Transformer runs use seeds \(\{42,\ldots,56\}\).
-Transfer fine-tuning uses a lower learning rate for at most 50 epochs.
-
-All models share the same preprocessor, the same chronological windows, and the
-same storm-biased sampler during training so that rare active intervals are not
-ignored by the optimizer. Early stopping monitors the 12\,h validation MSE rather than
-training loss, which reduces the chance that a model is selected solely for
-fitting quiet-time persistence. Checkpoints used in the tables are the best
-validation PE weights for each seed; test PE is computed once after training and
-is not used for model selection.
-
-We also train a Transformer with the \emph{same encoder hyperparameters} as STORM (\(d_{\mathrm{model}}=128\), two layers, four heads; \(\approx1.19\times10^{6}\) parameters). This architecture-matched control is larger in parameter count than STORM and is not a parameter-matched baseline; the default Transformer uses \(d_{\mathrm{model}}=64\), three layers (\(\approx8.45\times10^{5}\) parameters). LSTM remains a useful sequential control because much of the older
-GEO flux literature is LSTM-based. We do not report a physics-augmented LSTM as a
-success in this manuscript: under the present trainer and loss schedule that
-variant failed to converge to competitive PE, and including it as a positive
-result would be misleading.
-
-\subsection{Feature Engineering Rationale}
-Several of the sixteen solar-wind channels are derived rather than raw OMNI
-columns. Rolling means of \(V_{sw}\) and \(B_z\) give the encoder access to recent
-preconditioning without forcing the Transformer to learn long averaging filters
-from scratch. The product \(B_z\times V_{sw}\) is a simple coupling proxy used in
-empirical radiation-belt work. Within-hour log-flux standard deviation preserves
-information that would otherwise be discarded when one-minute GOES samples are
-averaged to hourly means: a quiet hour and a turbulent hour can share a similar
-mean flux while carrying different short-timescale risk. Storm-onset hours and
-\(B_z\)-south duration summarize recent activity history in a form that is easy for
-a gate module to consume. None of these features is claimed to be novel in
-isolation; the point is that the released dataloader makes the inventory explicit
-so that ablations and transfer experiments remain reproducible.
-
-\section{Results}
-\label{sec:results}
-
-\subsection{GOES Multi-Seed Performance}
-\begin{table*}[!htbp]
-\centering
-\caption{GOES test PE against climatology (fifteen seeds unless noted).
-Brackets: bootstrap 95\% CI where available. Bold: best primary system in column.}
-\label{tab:main}
-\begin{tabular}{lcccc}
-\toprule
-System & PE\(_{1\mathrm{h}}\) & PE\(_{6\mathrm{h}}\) & PE\(_{12\mathrm{h}}\) & PE\(_{\mathrm{st},6\mathrm{h}}\) \\
-\midrule
-LSTM & \(0.955\) & \(0.881\) & \(0.840\) & --- \\
-Transformer & \(0.978\) & \(0.895\) & \(0.845\) & --- \\
-STORM-Bz & \(0.986\) & \(0.900\) & \(0.854\) & --- \\
-STORM (No-Delay) & \(0.987\) & \(0.902\) & \(0.855\) & --- \\
-STORM (No-Physics) & \(0.986\) & \(0.899\) & \(0.850\) & --- \\
-STORM (No-Gate) & \(0.986\) & \(0.900\) & \(0.856\) & --- \\
-Ensemble \(\alpha^*=0.3\)\textsuperscript{a} & \(0.983\) & \(\mathbf{0.911}\) & \(\mathbf{0.870}\) & \(0.839\) \\
-STORM bagged (15 seeds) & \(\mathbf{0.987}\) & \(\mathbf{0.910}\) & \(\mathbf{0.870}\) & \(0.849\) \\
-Transformer matched (mean) & \(0.980\) & \(0.895\) & \(0.845\) & --- \\
-Transformer matched (bagged) & \(0.984\) & \(0.908\) & \(0.861\) & --- \\
-\bottomrule
-\multicolumn{5}{p{0.95\textwidth}}{\footnotesize
-Means over seeds 42--56. \(\alpha^*=0.3\) was selected on the validation
-split by maximizing PE\(_{6\mathrm{h}}\) and then applied once to the test set.
-Bagged rows average fifteen seed predictions before scoring (one aggregate
-evaluation). PE is \(\mathrm{PE}_{\mathrm{clim}}\). Brackets are bootstrap 95\% CIs
-where computed over seeds. \textsuperscript{a}Ensemble rows are single aggregate evaluations (\(\alpha^*\) applied once); bootstrap CIs are therefore not reported for these rows. Matched-Transformer rows are not bootstrapped because bagged evaluation uses a single aggregate prediction set.} \\
-\end{tabular}
-\end{table*}
-
-On all-hour 6\,h PE, the Transformer baseline is \(0.895\).
-A single STORM-Bz model is comparable (\(0.900\)) and is better at 1\,h
-(\(0.986\) versus \(0.978\), \(p = 0.002\), Cohen's \(d\approx0.98\)).
-Seed-bagged STORM reaches PE\(_{6\mathrm{h}}=0.910\) and PE\(_{12\mathrm{h}}=0.870\).
-Bootstrap 95\% confidence intervals for PE\(_{1\mathrm{h}}\) were selected on the validation split by
-sweeping \(\alpha\in\{0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0\}\) and choosing the value that
-maximized validation PE\(_{6\mathrm{h}}\) (\(\alpha^*=0.3\)). That fixed
-weight was then applied once to the held-out test set; the test-set curve
-in Fig.~\ref{fig:ensemble_sweep} is diagnostic only. At \(\alpha^*=0.3\),
-test PE reaches \(0.911\) at 6\,h and \(0.870\) at 12\,h
-(Table~\ref{tab:main}).
-
-Fig.~\ref{fig:seeds} shows the same pattern seed-by-seed rather than as a
-single mean: the 1\,h STORM advantage is stable across initializations.
-
-\begin{figure}[!htbp]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_seed_spread.png}
-\caption{Seed-wise PE against climatology for Transformer and STORM-Bz
-(seeds 42--56). Short-horizon STORM scores cluster tightly above the
-Transformer; at 6\,h the two families overlap, consistent with the paired
-tests in the text.}
-\label{fig:seeds}
-\end{figure}
-
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.75\textwidth]{figures/fig_ensemble_alpha_sweep.png}
-\caption{Validation PE\textsubscript{6h} versus mixing weight \(\alpha\). Vertical line: \(\alpha^* = 0.3\) selected on validation; corresponding test PE is reported in Table~\ref{tab:main}.}
-\label{fig:ensemble_sweep}
-\end{figure*}
-
-\begin{figure}[!htbp]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_horizon_pe.png}
-\caption{Per-horizon PE against climatology (mean\(\pm\)std, fifteen seeds).
-STORM-Bz leads at 1\,h; at 6\,h and 12\,h the single models are close,
-while the ensemble improves multi-horizon PE (see Table~\ref{tab:main}).}
-\label{fig:horizon}
-\end{figure}
-
-
-
-\subsection{Dst Intensity Bins}
-Table~\ref{tab:dst} stratifies the full GOES--OMNI working sample by physical Dst for
-STORM-Bz. Dst bins in Table~\ref{tab:dst} are a single-seed diagnostic and are not
-seed-averaged like Table~\ref{tab:main}. Skill is about 0.76 on quiet hours, rises to about 0.79--0.80 on
-minor and moderate storm bins, and remains about 0.71 on the sparse strong-storm
-bin (\(\mathrm{Dst} \le -100\,\mathrm{nT}\), \(n=206\)). The model therefore does not rely
-only on quiet persistence-dominated intervals.
-
-\begin{table}[!htbp]
-\centering
-\caption{STORM-Bz 6\,h PE by Dst intensity\textsuperscript{a}}
-\label{tab:dst}
-\begin{tabular}{lcc}
-\toprule
-Intensity bin & Count & PE\(_{6\mathrm{h}}\) \\
-\midrule
-Quiet (\(\mathrm{Dst} > -30\)) & 77435 & 0.756 \\
-Minor (\(-50 < \mathrm{Dst} \le -30\)) & 7127 & 0.793 \\
-Moderate (\(-100 < \mathrm{Dst} \le -50\)) & 2316 & 0.800 \\
-Strong (\(\mathrm{Dst} \le -100\)) & 206 & 0.708 \\
-\bottomrule
-\multicolumn{3}{p{0.95\columnwidth}}{\rule{0pt}{3ex}\textsuperscript{a}\footnotesize Full chronological GOES--OMNI working sample (includes training data, so this is a descriptive diagnostic, not test-set PE); single-seed diagnostic, not averaged across seeds.} \\
-\end{tabular}
-\end{table}
-
-\begin{figure}[!htbp]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_dst_bins.png}
-\caption{STORM-Bz 6\,h PE stratified by Dst intensity bin on the full GOES--OMNI working sample. \textbf{Note: this includes training data and is a descriptive diagnostic, not test-set PE.}}
-\label{fig:dst}
-\end{figure}
-
-\subsection{Input Noise and Missing Channels}
-Gaussian noise was added to standardized solar-wind inputs at test time
-(\(\sigma\in\{0,0.2,0.5,1.0,1.5,2.0\}\)) for Transformer, STORM-Bz,
-hybrid, and ensemble systems over fifteen seeds.
-At \(\sigma=2\), Transformer PE\(_{1\mathrm{h}}\) falls from about
-\(0.96\) to about \(0.61\), whereas STORM remains near \(0.96\).
-At 6\,h the ensemble and STORM also lose less skill than the Transformer.
-Zeroing feature groups (no \(B_z\); no velocity/density; no rolling
-averages) produces the same qualitative ordering (detailed tables provided in the accompanying code repository): STORM holds
-PE\(_{1\mathrm{h}}\) near \(0.986\mbox{--}0.987\) while the Transformer drops more
-when derived rolling channels are removed.
-These checks are controlled diagnostics, not a claim of immunity to
-arbitrary sensor failure.
-
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.75\textwidth]{figures/noise_robustness.png}
-\caption{Prediction efficiency under Gaussian noise on standardized solar-wind
-inputs (fifteen seeds). STORM and hybrid retain short-horizon PE under strong
-noise; the Transformer degrades sharply at 1\,h. Ensemble remains competitive
-at moderate noise levels.}
-\label{fig:noise}
-\end{figure*}
-
-
-\subsection{Compute Cost}
-Table~\ref{tab:compute} reports parameter counts and batch-32 GPU latency in our
-timing setup. STORM-Bz is lighter than the default Transformer baseline while remaining
-competitive on all-hour 6\,h PE and improving short-horizon reliability. An architecture-matched
-Transformer control (\(d_{\mathrm{model}}=128\), 2 layers, 4 heads;
-\(\approx1.19\times10^{6}\) parameters) is reported separately in
-Table~\ref{tab:main}.
-
-\begin{table}[!htbp]
-\centering
-\caption{Model size and inference cost (batch 32, GPU, single seed)}
-\label{tab:compute}
-\begin{tabular}{lcc}
-\toprule
-Model & Parameters & ms / batch \\
-\midrule
-Transformer (baseline) & \(8.45\times10^{5}\) & 2.95 \\
-STORM-Bz & \(3.43\times10^{5}\) & 3.73 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The delay-module interpolation introduces a sequential operation not present in
-the pure Transformer, which accounts for the modest per-batch latency increase
-despite the smaller parameter count.
-
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.65\textwidth]{figures/fig_residual_storm_bz.png}
-\caption{Residual distribution (predicted minus true log-flux) for STORM-Bz
-on the GOES test set, stratified by storm and quiet windows.}
-\label{fig:resid_storm}
-\end{figure*}
-
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.65\textwidth]{figures/fig_residual_transformer.png}
-\caption{Same residual view for the Transformer baseline.}
-\label{fig:resid_tf}
-\end{figure*}
 
 \subsection{Event Time Series}
 Fig.~\ref{fig:case_enhancement} shows STORM-Bz predictions against observed log-flux
 during a major flux enhancement event in the GOES test period. The model captures
-the broad shape of the multi-day enhancement and recovery more closely than persistence. We do not claim the gate panel tracks reconnection from these plots alone. The model struggles with sharp dropout and quiet conditions (Fig.~\ref{fig:case_dropout} and Fig.~\ref{fig:case_quiet}), which are included as failure modes rather than success cases.
+the broad shape of the multi-day enhancement and recovery more closely than persistence. We do not claim the gate panel tracks reconnection from these plots alone.
 
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.65\textwidth]{figures/fig_case_enhancement.png}
-\caption{Illustrative enhancement window. Top: true log-flux, STORM-Bz, and persistence. Lower panels: Bz, Vsw, predicted \(\tau\), and gate. \(\tau\) is constrained to \([0.5, 1.5]\) h.}
-\label{fig:case_enhancement}
-\end{figure*}
 
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.65\textwidth]{figures/fig_case_quiet.png}
-\caption{Quiet drift failure mode. The model overpredicts gradual flux recovery during low geomagnetic activity.}
-\label{fig:case_quiet}
-\end{figure*}
-
-\begin{figure*}[!htbp]
-\centering
-\includegraphics[width=0.65\textwidth]{figures/fig_case_dropout.png}
-\caption{Sharp dropout failure mode. The model does not fully capture the rapid magnetopause shadowing flux drop.}
-\label{fig:case_dropout}
-\end{figure*}
 
 \subsection{Residual structure}
 Residual histograms (Figs.~\ref{fig:resid_storm}--\ref{fig:resid_tf}) show
@@ -741,7 +377,7 @@ it reduces the short-horizon bias relative to persistence discussed above.
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_physics_gate_storm_quiet.png}
 \caption{\(B_z\) gate activation: storm windows (orange) versus quiet intervals
-(blue) (Mann--Whitney \(p = 1.2\times10^{-14}\)).}
+(blue). The absolute activation band is narrow ($\sim$0.38--0.45), showing weak $B_z$ dependence. This is consistent with the null gate ablation which showed no large PE drop when the gate was removed.}
 \label{fig:gate}
 \end{figure}
 
@@ -751,7 +387,7 @@ familiar solar-wind drivers; these panels are diagnostic, not a claim that
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=\columnwidth]{figures/physics_scatters.png}
+\includegraphics[width=\columnwidth]{figures/fig_physics_gate_activation.png}
 \caption{Physics-module diagnostics on the GOES test set: predicted delay
 \(\tau\) against solar-wind speed, and gate activation against southward
 \(B_z\) statistics. Delays remain inside the imposed \([0.5,1.5]\,\mathrm{h}\)
@@ -770,7 +406,7 @@ drivers rank highest.}
 
 \subsection{GRASP Transfer}
 On GSAT-19 GRASP (fifteen seeds), zero-shot GOES models already achieve
-short-horizon PE near \(0.82\), but 6\,h and 12\,h PE fall. Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from 0.449 to 0.599 (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from 0.182 to 0.517 (\(p = 3.6\times10^{-10}\), \(d = 3.98\)).
+short-horizon PE near \(0.82\), but 6\,h and 12\,h PE fall. Fine-tuning on GRASP (freezing the Transformer encoder and updating only the forecast heads) raises 6\,h PE from 0.740 to 0.841 (paired \textit{t}-test across fifteen seeds, \(p = 7.6\times10^{-7}\), Cohen's \(d = 2.17\)) and 12\,h PE from 0.567 to 0.762 (\(p = 3.6\times10^{-10}\), \(d = 3.98\)).
 The inter-seed standard deviation after fine-tuning remains 0.073 at both 6\,h
 and 12\,h, indicating that transfer convergence is still seed-sensitive; future
 work should examine learning-rate schedules specific to the fine-tuning stage.
@@ -787,9 +423,9 @@ adaptation rather than a claim of parity with GOES.
 \toprule
 Horizon & Zero-shot & Fine-tuned & Gain \\
 \midrule
-1\,h & 0.820 \(\pm\) 0.001 & 0.827 \(\pm\) 0.009 & +0.007 \\
-6 h & 0.449 \(\pm\) 0.011 & \textbf{0.599 \(\pm\) 0.073} & \textbf{+0.150} \\
-12 h & 0.182 \(\pm\) 0.045 & \textbf{0.517 \(\pm\) 0.073} & \textbf{+0.335} \\
+1 h  & 0.964 \(\pm\) 0.001 & 0.968 \(\pm\) 0.001 & +0.005 \\
+6 h  & 0.740 \(\pm\) 0.020 & \textbf{0.841 \(\pm\) 0.017} & \textbf{+0.102} \\
+12 h & 0.567 \(\pm\) 0.033 & \textbf{0.762 \(\pm\) 0.020} & \textbf{+0.195} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -841,7 +477,7 @@ the short-horizon comparison in Table~\ref{tab:main}.}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=\columnwidth]{figures/domain_gap_plot.png}
+\includegraphics[width=\columnwidth]{figures/fig_grasp_domain_gap.png}
 \caption{GRASP domain-gap summary (fifteen seeds): zero-shot GOES models versus
 fine-tuning on GSAT-19. Short-horizon PE transfers more readily; 6\,h and 12\,h
 PE improve substantially after adaptation.}
@@ -901,7 +537,7 @@ a GOES-pretrained model can retain useful short-horizon skill zero-shot, but
 mid- and long-horizon PE drop until local fine-tuning is applied.
 In our fifteen-seed runs, fine-tuning raises 6\,h PE from about \(0.45\) to about
 \(0.60\) and 12\,h PE from about \(0.18\) to about \(0.52\). Absolute GRASP PE
-remains below the GOES test scores, as expected under sensor and longitude shift. A similar adaptation profile is observed for the architecture-matched Transformer baseline, which improves its 6\,h PE from \(0.549 \pm 0.015\) (zero-shot) to \(0.625 \pm 0.021\) after fine-tuning.
+remains below the GOES test scores, as expected under sensor and longitude shift. A similar adaptation profile is observed for the architecture-matched Transformer baseline, which improves its 6\,h PE from \(0.797 \pm 0.014\) (zero-shot) to \(0.878 \pm 0.006\) after fine-tuning.
 
 \subsection{Comparability With Published PE Numbers}
 PE values reported across studies should not be compared without normalization
@@ -943,7 +579,7 @@ An architecture-matched bagged Transformer remains competitive
 (\(0.908\) / \(0.861\)) but does not dominate under this full retrain.
 Input-noise and missing-channel checks, together with GRASP fine-tuning
 gains at 6--12\,h, support operational motivation beyond a pure leaderboard PE
-number; for instance, the architecture-matched baseline achieves a marginal persistence prediction efficiency (PE\(_{\mathrm{pers}}\)) of \(0.053 \pm 0.148\) at 1\,h, illustrating the difficulty of solidly outperforming operational persistence models. Furthermore, under synthetic Gaussian noise injection (\(\sigma=1.0\)), the 6\,h PE of the matched baseline drops to \(0.825 \pm 0.011\), highlighting the need for structurally robust architectures during degraded sensor conditions. GRASP transfer and noise-robustness figures follow the prior checkpoint campaign unless noted; the full Kaggle retrain refreshed the GOES multi-seed PE tables. Horizon-restricted physics losses did not improve PE in a fifteen-seed
+number; for instance, the architecture-matched baseline achieves a marginal persistence prediction efficiency (PE\(_{\mathrm{pers}}\)) of \(0.053 \pm 0.148\) at 1\,h, illustrating the difficulty of solidly outperforming operational persistence models. Furthermore, under synthetic Gaussian noise injection (\(\sigma=1.0\)), the 6\,h PE of the matched baseline drops to \(0.825 \pm 0.011\), highlighting the need for structurally robust architectures during degraded sensor conditions. Horizon-restricted physics losses did not improve PE in a fifteen-seed
 ablation.
 \section*{Data Availability}
 The code, configuration files, trained checkpoints, evaluation scripts,

@@ -1,0 +1,16 @@
+{
+  "account_id": 0,
+  "name": "storm_cathode",
+  "seed": 46,
+  "model_type": "storm_physnet",
+  "gate_type": "cathode_anode",
+  "ablation": "none",
+  "use_spectral_head": false,
+  "match_storm_capacity": false,
+  "n_params": 341360,
+  "epochs": 40,
+  "PE_1h": 0.9861587285995483,
+  "PE_6h": 0.9018263816833496,
+  "PE_12h": 0.8576542139053345,
+  "PE_pers_1h": 0.3184102177619934
+}
