@@ -51,7 +51,6 @@ training:
   gradient_clip: 1.0
   learning_rate: 0.0003
   log_dir: logs
-  residual: true
   seed: 42
   storm_weight: 12.0
   warmup_epochs: 5

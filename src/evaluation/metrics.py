@@ -173,6 +173,8 @@ class StormEvaluator:
     """
     Comprehensive storm-period evaluation.
     Computes metrics separately for all / quiet / storm / intense storm periods.
+    Note: The storm/quiet split here is Kp-based (Kp >= 5) by default, which differs
+    from the paper's primary Dst-based definition (Dst <= -50 nT) used for PE_st,6h.
     This is the key evaluation that existing papers DON'T do.
     """
 
