@@ -162,6 +162,8 @@ use `backbone: transformer` and the physics Bz gate only.
 
 ## Quick Start (Google Colab – Recommended)
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Master.ipynb)
+
 1. Open [`notebooks/STORM_PhysNet_Master.ipynb`](https://colab.research.google.com/github/bnsama29-cloud/STORM-PhysNet/blob/main/notebooks/STORM_PhysNet_Master.ipynb) in Google Colab.
 2. Set runtime to **T4 GPU**.
 3. Run all cells.
