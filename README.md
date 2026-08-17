@@ -73,7 +73,7 @@ The IEEE Access version includes additional controlled experiments:
    The original [0.5, 1.5] h constraint is therefore not a performance bottleneck.
 
 3. **Supplementary gates (Access)**  
-   - **RDG** / **RDG-S** / **SDG**: alternative nonlinearities (see `results/GATE_NAME_MAP.md`)
+   - **RDG** / **RDG-S** / **SDG**: alternative nonlinearities (experimental variants)
    - Mean PE ≈ 0.986 / 0.901 / 0.855; none replaces STORM-Bz as the primary system
    - Artifacts: `checkpoints/alt_gates/`, `results/alt_gates/`
 
