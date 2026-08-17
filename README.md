@@ -121,6 +121,7 @@ STORM-PhysNet/
 │   └── evaluation/
 │       └── metrics.py              # PE_clim, PE_pers, RMSE helpers
 ├── notebooks/
+│   ├── README.md                   # Colab instructions
 │   └── STORM_PhysNet_Master.ipynb  # Master reproduction notebook
 ├── figures/                         # ALL paper figures
 ├── results/
